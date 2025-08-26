@@ -3,9 +3,12 @@ package analyzer
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/html"
 )
 
 func TestNewAnalyzer(t *testing.T) {

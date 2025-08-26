@@ -240,37 +240,36 @@ const indexHTML = `
                 headingsList = '<em>No headings found</em>';
             }
             
-            resultsDiv.innerHTML = '
-                <h2>Analysis Results</h2>
-                <div class="result-item">
-                    <div class="result-label">URL:</div>
-                    <div class="result-value">' + result.url + '</div>
-                </div>
-                <div class="result-item">
-                    <div class="result-label">HTML Version:</div>
-                    <div class="result-value">' + result.html_version + '</div>
-                </div>
-                <div class="result-item">
-                    <div class="result-label">Page Title:</div>
-                    <div class="result-value">' + (result.page_title || '<em>No title found</em>') + '</div>
-                </div>
-                <div class="result-item">
-                    <div class="result-label">Headings:</div>
-                    <div class="result-value">' + headingsList + '</div>
-                </div>
-                <div class="result-item">
-                    <div class="result-label">Links:</div>
-                    <div class="result-value">
-                        <strong>Internal:</strong> ' + result.internal_links + '<br>
-                        <strong>External:</strong> ' + result.external_links + '<br>
-                        <strong>Inaccessible:</strong> ' + result.inaccessible_links + '
-                    </div>
-                </div>
-                <div class="result-item">
-                    <div class="result-label">Login Form:</div>
-                    <div class="result-value">' + (result.has_login_form ? 'Yes' : 'No') + '</div>
-                </div>
-            ';
+            resultsDiv.innerHTML = 
+                '<h2>Analysis Results</h2>' +
+                '<div class="result-item">' +
+                    '<div class="result-label">URL:</div>' +
+                    '<div class="result-value">' + result.url + '</div>' +
+                '</div>' +
+                '<div class="result-item">' +
+                    '<div class="result-label">HTML Version:</div>' +
+                    '<div class="result-value">' + result.html_version + '</div>' +
+                '</div>' +
+                '<div class="result-item">' +
+                    '<div class="result-label">Page Title:</div>' +
+                    '<div class="result-value">' + (result.page_title || '<em>No title found</em>') + '</div>' +
+                '</div>' +
+                '<div class="result-item">' +
+                    '<div class="result-label">Headings:</div>' +
+                    '<div class="result-value">' + headingsList + '</div>' +
+                '</div>' +
+                '<div class="result-item">' +
+                    '<div class="result-label">Links:</div>' +
+                    '<div class="result-value">' +
+                        '<strong>Internal:</strong> ' + result.internal_links + '<br>' +
+                        '<strong>External:</strong> ' + result.external_links + '<br>' +
+                        '<strong>Inaccessible:</strong> ' + result.inaccessible_links +
+                    '</div>' +
+                '</div>' +
+                '<div class="result-item">' +
+                    '<div class="result-label">Login Form:</div>' +
+                    '<div class="result-value">' + (result.has_login_form ? 'Yes' : 'No') + '</div>' +
+                '</div>';
         }
     </script>
 </body>
