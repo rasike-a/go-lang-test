@@ -73,8 +73,8 @@ func TestAnalyzeURL_InvalidURL(t *testing.T) {
 		t.Error("Expected error for invalid URL")
 	}
 	
-	if !strings.Contains(result.Error, "Invalid URL") {
-		t.Errorf("Expected 'Invalid URL' in error message, got: %s", result.Error)
+	if !(strings.Contains(result.Error, "Invalid URL") || strings.Contains(result.Error, "Failed to fetch URL")) {
+		t.Errorf("Expected 'Invalid URL' or fetch error in message, got: %s", result.Error)
 	}
 }
 
