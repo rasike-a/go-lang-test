@@ -21,4 +21,4 @@ Thumbs.db
 
 # Build artifacts
 /bin/
-/dist/
+/dist/web-page-analyzer

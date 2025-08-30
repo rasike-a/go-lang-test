@@ -1,7 +1,7 @@
 package analyzer
 
 import (
-	"fmt"
+	"context"
 	"io"
 	"log"
 	"net/http"
@@ -22,14 +22,15 @@ type AnalysisResult struct {
 	ExternalLinks     int               `json:"external_links"`
 	InaccessibleLinks int               `json:"inaccessible_links"`
 	HasLoginForm      bool              `json:"has_login_form"`
-	Error             string            `json:"error,omitempty"`
+	Error             *AnalysisError    `json:"error,omitempty"`
 	StatusCode        int               `json:"status_code,omitempty"`
 }
 
 type Analyzer struct {
-	httpClient *http.Client
-	timeout    time.Duration
-	logger     *log.Logger
+	httpClient     *http.Client
+	timeout        time.Duration
+	logger         *log.Logger
+	circuitBreaker *CircuitBreaker
 }
 
 func NewAnalyzer(timeout time.Duration) *Analyzer {
@@ -37,8 +38,9 @@ func NewAnalyzer(timeout time.Duration) *Analyzer {
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
-		timeout: timeout,
-		logger:  log.New(os.Stdout, "analyzer ", log.LstdFlags),
+		timeout:        timeout,
+		logger:         log.New(os.Stdout, "analyzer ", log.LstdFlags),
+		circuitBreaker: NewCircuitBreaker(5, 30*time.Second, 2),
 	}
 }
 
@@ -50,6 +52,10 @@ func (a *Analyzer) SetLogger(logger *log.Logger) {
 }
 
 func (a *Analyzer) AnalyzeURL(targetURL string) *AnalysisResult {
+	return a.AnalyzeURLWithContext(context.Background(), targetURL)
+}
+
+func (a *Analyzer) AnalyzeURLWithContext(ctx context.Context, targetURL string) *AnalysisResult {
 	result := &AnalysisResult{
 		URL:           targetURL,
 		HeadingCounts: make(map[string]int),
@@ -67,7 +73,7 @@ func (a *Analyzer) AnalyzeURL(targetURL string) *AnalysisResult {
 			normalized := "https://" + targetURL
 			parsedURL, err = url.Parse(normalized)
 			if err != nil {
-				result.Error = fmt.Sprintf("Invalid URL: %v", err)
+				result.Error = NewInvalidURLError(targetURL, err)
 				if a.logger != nil {
 					a.logger.Printf("invalid_url url=%q err=%v", targetURL, err)
 				}
@@ -78,7 +84,7 @@ func (a *Analyzer) AnalyzeURL(targetURL string) *AnalysisResult {
 			}
 			targetURL = normalized
 		} else {
-			result.Error = fmt.Sprintf("Invalid URL: %v", err)
+			result.Error = NewInvalidURLError(targetURL, err)
 			if a.logger != nil {
 				a.logger.Printf("invalid_url url=%q err=%v", targetURL, err)
 			}
@@ -90,7 +96,7 @@ func (a *Analyzer) AnalyzeURL(targetURL string) *AnalysisResult {
 		targetURL = "https://" + targetURL
 		parsedURL, err = url.Parse(targetURL)
 		if err != nil {
-			result.Error = fmt.Sprintf("Invalid URL: %v", err)
+			result.Error = NewInvalidURLError(targetURL, err)
 			if a.logger != nil {
 				a.logger.Printf("invalid_url_after_normalize url=%q err=%v", targetURL, err)
 			}
@@ -101,10 +107,34 @@ func (a *Analyzer) AnalyzeURL(targetURL string) *AnalysisResult {
 		}
 	}
 
+	// Check context cancellation before making HTTP request
+	select {
+	case <-ctx.Done():
+		result.Error = NewAnalysisError(ErrCodeTimeoutError, "Request cancelled").WithURL(targetURL)
+		return result
+	default:
+	}
+
 	reqStart := time.Now()
-	resp, err := a.httpClient.Get(targetURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	if err != nil {
-		result.Error = fmt.Sprintf("Failed to fetch URL: %v", err)
+		result.Error = NewAnalysisError(ErrCodeInternalError, "Failed to create request").WithCause(err).WithURL(targetURL)
+		return result
+	}
+
+	// Use circuit breaker for HTTP requests
+	var resp *http.Response
+	err = a.circuitBreaker.Execute(func() error {
+		resp, err = a.httpClient.Do(req)
+		return err
+	})
+	
+	if err != nil {
+		if IsAnalysisError(err) && err.(*AnalysisError).Code == ErrCodeNetworkError && err.(*AnalysisError).Message == "Circuit breaker is open" {
+			result.Error = NewAnalysisError(ErrCodeNetworkError, "Service temporarily unavailable due to repeated failures").WithURL(targetURL)
+		} else {
+			result.Error = NewNetworkError(targetURL, err)
+		}
 		if a.logger != nil {
 			a.logger.Printf("http_get_error url=%q ms=%d err=%v", targetURL, time.Since(reqStart).Milliseconds(), err)
 		}
@@ -114,16 +144,24 @@ func (a *Analyzer) AnalyzeURL(targetURL string) *AnalysisResult {
 
 	result.StatusCode = resp.StatusCode
 	if resp.StatusCode >= 400 {
-		result.Error = fmt.Sprintf("HTTP %d: %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+		result.Error = NewHTTPError(resp.StatusCode, targetURL)
 		if a.logger != nil {
 			a.logger.Printf("http_status_error url=%q status=%d ms=%d", targetURL, resp.StatusCode, time.Since(reqStart).Milliseconds())
 		}
 		return result
 	}
 
+	// Check context cancellation before reading body
+	select {
+	case <-ctx.Done():
+		result.Error = NewAnalysisError(ErrCodeTimeoutError, "Request cancelled").WithURL(targetURL)
+		return result
+	default:
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		result.Error = fmt.Sprintf("Failed to read response body: %v", err)
+		result.Error = NewAnalysisError(ErrCodeInternalError, "Failed to read response body").WithCause(err).WithURL(targetURL)
 		if a.logger != nil {
 			a.logger.Printf("read_body_error url=%q err=%v", targetURL, err)
 		}
@@ -136,7 +174,7 @@ func (a *Analyzer) AnalyzeURL(targetURL string) *AnalysisResult {
 	parseStart := time.Now()
 	doc, err := html.Parse(strings.NewReader(string(body)))
 	if err != nil {
-		result.Error = fmt.Sprintf("Failed to parse HTML: %v", err)
+		result.Error = NewParseError(targetURL, err)
 		if a.logger != nil {
 			a.logger.Printf("html_parse_error url=%q err=%v", targetURL, err)
 		}

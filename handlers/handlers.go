@@ -50,11 +50,38 @@ func (s *Server) AnalyzeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	result := s.analyzer.AnalyzeURL(url)
+	// Use context-aware analyzer
+	result := s.analyzer.AnalyzeURLWithContext(r.Context(), url)
+	
+	// Set appropriate HTTP status code based on result
+	statusCode := http.StatusOK
+	if result.Error != nil {
+		switch result.Error.Code {
+		case analyzer.ErrCodeInvalidURL:
+			statusCode = http.StatusBadRequest
+		case analyzer.ErrCodeHTTPError:
+			if result.StatusCode >= 400 && result.StatusCode < 500 {
+				statusCode = http.StatusBadRequest
+			} else if result.StatusCode >= 500 {
+				statusCode = http.StatusBadGateway
+			}
+		case analyzer.ErrCodeNetworkError:
+			statusCode = http.StatusBadGateway
+		case analyzer.ErrCodeParseError:
+			statusCode = http.StatusUnprocessableEntity
+		case analyzer.ErrCodeTimeoutError:
+			statusCode = http.StatusRequestTimeout
+		default:
+			statusCode = http.StatusInternalServerError
+		}
+	}
 	
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		log.Printf("JSON encoding error: %v", err)
+		// Don't change status code here as we've already written it
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}

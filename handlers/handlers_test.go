@@ -154,8 +154,8 @@ func TestAnalyzeHandler_ValidURL(t *testing.T) {
 		t.Fatalf("Failed to unmarshal JSON response: %v", err)
 	}
 	
-	if result.Error != "" {
-		t.Errorf("Unexpected error in result: %s", result.Error)
+	if result.Error != nil {
+		t.Errorf("Unexpected error in result: %s", result.Error.Message)
 	}
 	
 	if result.HTMLVersion != "HTML5" {
@@ -182,33 +182,32 @@ func TestAnalyzeHandler_ValidURL(t *testing.T) {
 func TestAnalyzeHandler_InvalidURL(t *testing.T) {
 	server := NewServer()
 	
-	form := url.Values{}
-	form.Add("url", "invalid-url")
-	
-	req, err := http.NewRequest("POST", "/analyze", strings.NewReader(form.Encode()))
+	req, err := http.NewRequest("POST", "/analyze", strings.NewReader("url=invalid-url"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	
 	rr := httptest.NewRecorder()
 	server.AnalyzeHandler(rr, req)
 	
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Expected status code %d, got %d", http.StatusOK, status)
+	// The URL gets normalized and fails at network level, so it's a 502 Bad Gateway
+	if rr.Code != http.StatusBadGateway {
+		t.Errorf("Expected status %d, got %d", http.StatusBadGateway, rr.Code)
 	}
 	
 	var result analyzer.AnalysisResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
-		t.Fatalf("Failed to unmarshal JSON response: %v", err)
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatal(err)
 	}
 	
-	if result.Error == "" {
-		t.Error("Expected error for invalid URL")
+	if result.Error == nil {
+		t.Fatal("Expected error for invalid URL")
 	}
 	
-	if !(strings.Contains(result.Error, "Invalid URL") || strings.Contains(result.Error, "Failed to fetch URL")) {
-		t.Errorf("Expected 'Invalid URL' or fetch error in message, got: %s", result.Error)
+	// The URL gets normalized to https://invalid-url, so it fails at network level
+	if result.Error.Code != analyzer.ErrCodeNetworkError {
+		t.Errorf("Expected error code %s, got %s", analyzer.ErrCodeNetworkError, result.Error.Code)
 	}
 }
 
@@ -233,8 +232,9 @@ func TestAnalyzeHandler_HTTPError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	server.AnalyzeHandler(rr, req)
 	
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Expected status code %d, got %d", http.StatusOK, status)
+	// HTTP 404 errors are now treated as client errors (400 Bad Request)
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, status)
 	}
 	
 	var result analyzer.AnalysisResult
@@ -242,16 +242,16 @@ func TestAnalyzeHandler_HTTPError(t *testing.T) {
 		t.Fatalf("Failed to unmarshal JSON response: %v", err)
 	}
 	
-	if result.Error == "" {
+	if result.Error == nil {
 		t.Error("Expected error for HTTP 404")
 	}
-	
+
 	if result.StatusCode != 404 {
 		t.Errorf("Expected status code 404, got %d", result.StatusCode)
 	}
 	
-	if !strings.Contains(result.Error, "404") {
-		t.Errorf("Expected '404' in error message, got: %s", result.Error)
+	if result.Error.Code != analyzer.ErrCodeHTTPError {
+		t.Errorf("Expected error code %s, got %s", analyzer.ErrCodeHTTPError, result.Error.Code)
 	}
 }
 
@@ -298,8 +298,8 @@ func TestAnalyzeHandler_LoginFormDetection(t *testing.T) {
 		t.Fatalf("Failed to unmarshal JSON response: %v", err)
 	}
 	
-	if result.Error != "" {
-		t.Errorf("Unexpected error: %s", result.Error)
+	if result.Error != nil {
+		t.Errorf("Unexpected error: %s", result.Error.Message)
 	}
 	
 	if !result.HasLoginForm {

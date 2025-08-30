@@ -65,16 +65,20 @@ func TestDetectHTMLVersion(t *testing.T) {
 }
 
 func TestAnalyzeURL_InvalidURL(t *testing.T) {
-	analyzer := NewAnalyzer(30 * time.Second)
-	
+	analyzer := NewAnalyzer(5 * time.Second)
 	result := analyzer.AnalyzeURL("invalid-url")
 	
-	if result.Error == "" {
-		t.Error("Expected error for invalid URL")
+	if result.Error == nil {
+		t.Fatal("Expected error for invalid URL")
 	}
 	
-	if !(strings.Contains(result.Error, "Invalid URL") || strings.Contains(result.Error, "Failed to fetch URL")) {
-		t.Errorf("Expected 'Invalid URL' or fetch error in message, got: %s", result.Error)
+	// The URL gets normalized to https://invalid-url, so it fails at network level
+	if result.Error.Code != ErrCodeNetworkError {
+		t.Errorf("Expected error code %s, got %s", ErrCodeNetworkError, result.Error.Code)
+	}
+	
+	if result.URL != "invalid-url" {
+		t.Errorf("Expected URL 'invalid-url', got %s", result.URL)
 	}
 }
 
@@ -111,8 +115,8 @@ func TestAnalyzeURL_ValidHTML(t *testing.T) {
 	analyzer := NewAnalyzer(30 * time.Second)
 	result := analyzer.AnalyzeURL(server.URL)
 
-	if result.Error != "" {
-		t.Errorf("Unexpected error: %s", result.Error)
+	if result.Error != nil {
+		t.Errorf("Unexpected error: %s", result.Error.Message)
 	}
 
 	if result.HTMLVersion != "HTML5" {
@@ -152,7 +156,7 @@ func TestAnalyzeURL_HTTPError(t *testing.T) {
 	analyzer := NewAnalyzer(30 * time.Second)
 	result := analyzer.AnalyzeURL(server.URL)
 
-	if result.Error == "" {
+	if result.Error == nil {
 		t.Error("Expected error for HTTP 404")
 	}
 
@@ -160,8 +164,8 @@ func TestAnalyzeURL_HTTPError(t *testing.T) {
 		t.Errorf("Expected status code 404, got %d", result.StatusCode)
 	}
 
-	if !strings.Contains(result.Error, "404") {
-		t.Errorf("Expected '404' in error message, got: %s", result.Error)
+	if result.Error.Code != ErrCodeHTTPError {
+		t.Errorf("Expected error code %s, got %s", ErrCodeHTTPError, result.Error.Code)
 	}
 }
 
@@ -286,21 +290,15 @@ func parseHTMLString(htmlStr string) (*html.Node, error) {
 }
 
 func TestAnalyzeURL_URLWithoutScheme(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte("<html><head><title>Test</title></head><body></body></html>"))
-	}))
-	defer server.Close()
-
-	analyzer := NewAnalyzer(30 * time.Second)
+	analyzer := NewAnalyzer(5 * time.Second)
+	result := analyzer.AnalyzeURL("example.com")
 	
-	// Remove scheme from server URL for testing
-	urlWithoutScheme := strings.TrimPrefix(server.URL, "http://")
-	result := analyzer.AnalyzeURL(urlWithoutScheme)
-
-	// The analyzer should add https:// and then fail to connect
-	// but it shouldn't fail with "Invalid URL" error
-	if strings.Contains(result.Error, "Invalid URL") {
-		t.Errorf("Should not get 'Invalid URL' error for URL without scheme, got: %s", result.Error)
+	// example.com is a valid domain, so it should succeed
+	if result.Error != nil {
+		t.Errorf("Unexpected error: %s", result.Error.Message)
+	}
+	
+	if result.URL != "example.com" {
+		t.Errorf("Expected URL 'example.com', got %s", result.URL)
 	}
 }
