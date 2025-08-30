@@ -1,0 +1,55 @@
+<template id="resultsTemplate">
+    <h2 class="results-header">Analysis Results</h2>
+    
+    <div class="result-item">
+        <div class="result-label">URL</div>
+        <div class="result-value" data-field="url"></div>
+    </div>
+    
+    <div class="result-item">
+        <div class="result-label">HTML Version</div>
+        <div class="result-value" data-field="html_version"></div>
+    </div>
+    
+    <div class="result-item">
+        <div class="result-label">Page Title</div>
+        <div class="result-value" data-field="page_title"></div>
+    </div>
+    
+    <div class="result-item">
+        <div class="result-label">Headings</div>
+        <div class="result-value" data-field="headings"></div>
+    </div>
+    
+    <div class="result-item">
+        <div class="result-label">Links</div>
+        <div class="result-value" data-field="links"></div>
+    </div>
+    
+    <div class="result-item">
+        <div class="result-label">Login Form</div>
+        <div class="result-value" data-field="login_form"></div>
+    </div>
+</template>
+
+<template id="headingsTemplate">
+    <ul class="headings-list">
+        <li data-template="heading-item">
+            <strong data-field="level"></strong>: <span data-field="count"></span>
+        </li>
+    </ul>
+</template>
+
+<template id="loadingTemplate">
+    <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <div class="loading-message">Analyzing web page, please wait...</div>
+    </div>
+</template>
+
+<template id="errorTemplate">
+    <div class="error-state">
+        <div class="error-icon">⚠️</div>
+        <div class="error-message" data-field="message"></div>
+    </div>
+</template>

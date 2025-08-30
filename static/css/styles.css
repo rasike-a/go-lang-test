@@ -106,6 +106,91 @@
   }
 }
 
+/* State-based Classes */
+[data-state="loading"] .results {
+  border-color: var(--info-color);
+  background: var(--info-light);
+}
+
+[data-state="error"] .results {
+  border-color: var(--error-color);
+  background: var(--error-light);
+}
+
+[data-state="success"] .results {
+  border-color: var(--success-color);
+  background: var(--success-light);
+}
+
+/* Loading States */
+.loading-state {
+  text-align: center;
+  padding: var(--space-8);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--gray-200);
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto var(--space-4);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-message {
+  color: var(--gray-600);
+  font-size: var(--text-lg);
+}
+
+/* Error States */
+.error-state {
+  text-align: center;
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--error-light);
+  border: 1px solid var(--error-color);
+}
+
+.error-icon {
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-3);
+}
+
+.error-message {
+  color: var(--error-color);
+  font-size: var(--text-lg);
+  font-weight: var(--font-medium);
+}
+
+/* Form Help Text */
+.form-help {
+  font-size: var(--text-sm);
+  color: var(--gray-500);
+  margin-top: var(--space-2);
+  font-style: italic;
+}
+
+/* Focus States */
+.form-group.focused .form-label {
+  color: var(--primary-color);
+}
+
+.form-group.focused .form-input {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* Utility Classes */
+.hidden { display: none !important; }
+.visible { display: block !important; }
+.loading { opacity: 0.7; pointer-events: none; }
+
 /* Reset and Base Styles */
 * {
   margin: 0;

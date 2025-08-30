@@ -51,8 +51,8 @@ func TestIndexHandler_GET(t *testing.T) {
 		t.Error("Expected 'Web Page Analyzer' in response body")
 	}
 	
-	if !strings.Contains(body, `<form id="analyzeForm">`) {
-		t.Error("Expected form element in response body")
+	if !strings.Contains(body, `id="analyzeForm"`) {
+		t.Error("Expected form element with id 'analyzeForm' in response body")
 	}
 }
 

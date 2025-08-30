@@ -1,10 +1,17 @@
-// Web Page Analyzer - Main JavaScript Application
+/**
+ * Web Page Analyzer - Main JavaScript Application
+ * Improved version with better separation of concerns
+ */
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize components
     const analyzeForm = document.getElementById('analyzeForm');
     const urlInput = document.getElementById('url');
     const submitBtn = document.getElementById('submitBtn');
     const resultsDiv = document.getElementById('results');
+    
+    // Initialize the results renderer
+    const resultsRenderer = new ResultsRenderer(resultsDiv);
 
     // Form submission handler
     analyzeForm.addEventListener('submit', async function(e) {
@@ -12,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const url = urlInput.value.trim();
         if (!url) {
-            showError('Please enter a valid URL');
+            resultsRenderer.renderError('Please enter a valid URL');
             return;
         }
         
@@ -20,8 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
         setButtonLoading(true);
         
         // Show results container with loading state
-        showResults();
-        showLoading();
+        resultsRenderer.show();
+        resultsRenderer.renderLoading();
         
         try {
             const formData = new FormData();
@@ -37,106 +44,37 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const result = await response.json();
-            displayResults(result);
+            resultsRenderer.renderResults(result);
         } catch (error) {
             console.error('Analysis error:', error);
-            showError(`Error: Failed to analyze the page. ${error.message}`);
+            resultsRenderer.renderError(`Error: Failed to analyze the page. ${error.message}`);
         } finally {
             // Reset button state
             setButtonLoading(false);
         }
     });
 
-    // Set button loading state
+    /**
+     * Set button loading state using data attributes
+     */
     function setButtonLoading(loading) {
+        const loadingText = submitBtn.dataset.loadingText || 'Analyzing...';
+        const defaultText = submitBtn.dataset.defaultText || 'Analyze Page';
+        
         if (loading) {
             submitBtn.disabled = true;
             submitBtn.classList.add('btn-loading');
-            submitBtn.textContent = 'Analyzing...';
+            submitBtn.textContent = loadingText;
         } else {
             submitBtn.disabled = false;
             submitBtn.classList.remove('btn-loading');
-            submitBtn.textContent = 'Analyze Page';
+            submitBtn.textContent = defaultText;
         }
     }
 
-    // Show results container
-    function showResults() {
-        resultsDiv.style.display = 'block';
-    }
-
-    // Show loading state
-    function showLoading() {
-        resultsDiv.innerHTML = '<div class="loading">Analyzing web page, please wait...</div>';
-    }
-
-    // Show error message
-    function showError(message) {
-        resultsDiv.innerHTML = `<div class="error">${message}</div>`;
-    }
-
-    // Display analysis results
-    function displayResults(result) {
-        if (result.error) {
-            let errorMsg = result.error;
-            if (result.status_code) {
-                errorMsg = `HTTP ${result.status_code}: ${result.error}`;
-            }
-            showError(errorMsg);
-            return;
-        }
-        
-        const headingsList = generateHeadingsList(result.heading_counts);
-        
-        resultsDiv.innerHTML = `
-            <h2 class="results-header">Analysis Results</h2>
-            <div class="result-item">
-                <div class="result-label">URL</div>
-                <div class="result-value">${result.url}</div>
-            </div>
-            <div class="result-item">
-                <div class="result-label">HTML Version</div>
-                <div class="result-value">${result.html_version}</div>
-            </div>
-            <div class="result-item">
-                <div class="result-label">Page Title</div>
-                <div class="result-value">${result.page_title || '<em>No title found</em>'}</div>
-            </div>
-            <div class="result-item">
-                <div class="result-label">Headings</div>
-                <div class="result-value">${headingsList}</div>
-            </div>
-            <div class="result-item">
-                <div class="result-label">Links</div>
-                <div class="result-value">
-                    <strong>Internal:</strong> ${result.internal_links}<br>
-                    <strong>External:</strong> ${result.external_links}<br>
-                    <strong>Inaccessible:</strong> ${result.inaccessible_links}
-                </div>
-            </div>
-            <div class="result-item">
-                <div class="result-label">Login Form</div>
-                <div class="result-value">${result.has_login_form ? 'Yes' : 'No'}</div>
-            </div>
-        `;
-    }
-
-    // Generate headings list HTML
-    function generateHeadingsList(headingCounts) {
-        if (!headingCounts || Object.keys(headingCounts).length === 0) {
-            return '<em>No headings found</em>';
-        }
-        
-        let headingsList = '<ul class="headings-list">';
-        for (const [level, count] of Object.entries(headingCounts)) {
-            headingsList += `<li><strong>${level.toUpperCase()}:</strong> ${count}</li>`;
-        }
-        headingsList += '</ul>';
-        
-        return headingsList;
-    }
-
-    // Add some interactive enhancements
+    /**
+     * Add interactive enhancements
+     */
     urlInput.addEventListener('focus', function() {
         this.parentElement.classList.add('focused');
     });
@@ -145,7 +83,9 @@ document.addEventListener('DOMContentLoaded', function() {
         this.parentElement.classList.remove('focused');
     });
 
-    // Add keyboard shortcuts
+    /**
+     * Add keyboard shortcuts
+     */
     document.addEventListener('keydown', function(e) {
         // Ctrl/Cmd + Enter to submit form
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -156,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Escape to clear form
         if (e.key === 'Escape') {
             urlInput.value = '';
-            resultsDiv.style.display = 'none';
+            resultsRenderer.hide();
             urlInput.focus();
         }
     });

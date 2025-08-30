@@ -105,19 +105,88 @@ const indexHTML = `
             </div>
             
             <div class="card">
-                <form id="analyzeForm">
+                <form id="analyzeForm" role="form" aria-label="URL Analysis Form">
                     <div class="form-group">
-                        <label for="url" class="form-label">Enter URL to analyze</label>
-                        <input type="url" id="url" name="url" class="form-input" required placeholder="https://example.go">
+                        <label for="url" class="form-label" id="url-label">Enter URL to analyze</label>
+                        <input type="url" id="url" name="url" class="form-input" required 
+                               placeholder="https://example.com" 
+                               aria-labelledby="url-label"
+                               aria-describedby="url-help"
+                               data-validation="url">
+                        <div id="url-help" class="form-help">Enter a valid web address to analyze</div>
                     </div>
-                    <button type="submit" id="submitBtn" class="btn btn-primary">Analyze Page</button>
+                    <button type="submit" id="submitBtn" class="btn btn-primary" 
+                            aria-live="polite"
+                            data-loading-text="Analyzing..."
+                            data-default-text="Analyze Page">Analyze Page</button>
                 </form>
                 
-                <div id="results" class="results"></div>
+                <div id="results" class="results" role="region" aria-live="polite" aria-label="Analysis Results"></div>
             </div>
         </div>
     </div>
 
+    <!-- HTML Templates -->
+    <div id="templates" style="display: none;">
+        <template id="resultsTemplate">
+            <h2 class="results-header">Analysis Results</h2>
+            
+            <div class="result-item">
+                <div class="result-label">URL</div>
+                <div class="result-value" data-field="url"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">HTML Version</div>
+                <div class="result-value" data-field="html_version"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Page Title</div>
+                <div class="result-value" data-field="page_title"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Headings</div>
+                <div class="result-value" data-field="headings"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Links</div>
+                <div class="result-value" data-field="links"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Login Form</div>
+                <div class="result-value" data-field="login_form"></div>
+            </div>
+        </template>
+
+        <template id="headingsTemplate">
+            <ul class="headings-list">
+                <li data-template="heading-item">
+                    <strong data-field="level"></strong>: <span data-field="count"></span>
+                </li>
+            </ul>
+        </template>
+
+        <template id="loadingTemplate">
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <div class="loading-message">Analyzing web page, please wait...</div>
+            </div>
+        </template>
+
+        <template id="errorTemplate">
+            <div class="error-state">
+                <div class="error-icon">⚠️</div>
+                <div class="error-message" data-field="message"></div>
+            </div>
+        </template>
+    </div>
+
+    <!-- JavaScript Files -->
+    <script src="/static/js/resultsRenderer.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>`
