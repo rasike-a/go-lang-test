@@ -33,7 +33,7 @@ class ResultsRenderer {
         
         // Populate all fields
         this.populateFields(clone, result);
-        this.renderHeadings(clone, result.heading_counts);
+        this.renderHeadings(clone, result.headings);
         this.renderLinks(clone, result);
         
         this.container.appendChild(clone);
@@ -46,14 +46,36 @@ class ResultsRenderer {
     populateFields(element, data) {
         element.querySelectorAll('[data-field]').forEach(field => {
             const key = field.dataset.field;
-            if (data[key] !== undefined) {
-                if (key === 'page_title') {
-                    field.textContent = data[key] || 'No title found';
-                } else if (key === 'login_form') {
-                    field.textContent = data[key] ? 'Yes' : 'No';
-                } else {
-                    field.textContent = data[key] || 'N/A';
-                }
+            
+            // Map template field names to API response field names
+            let value;
+            if (key === 'login_form') {
+                value = data.has_login_form;
+            } else if (key === 'html_version') {
+                value = data.html_version;
+            } else if (key === 'page_title') {
+                value = data.page_title;
+            } else if (key === 'headings') {
+                value = data.headings;
+            } else if (key === 'url') {
+                value = data.url;
+            } else {
+                value = data[key];
+            }
+            
+            // Handle special cases
+            if (key === 'page_title') {
+                field.textContent = value || 'No title found';
+            } else if (key === 'login_form') {
+                field.textContent = value ? 'Yes' : 'No';
+            } else if (key === 'headings') {
+                // Headings are handled separately by renderHeadings
+                return;
+            } else if (key === 'links') {
+                // Links are handled separately by renderLinks
+                return;
+            } else {
+                field.textContent = value || 'N/A';
             }
         });
     }
