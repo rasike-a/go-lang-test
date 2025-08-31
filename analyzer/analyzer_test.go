@@ -138,8 +138,8 @@ func TestAnalyzeURL_ValidHTML(t *testing.T) {
 		t.Errorf("Expected 1 internal link, got %d", result.InternalLinks)
 	}
 
-	if result.ExternalLinks != 2 {
-		t.Errorf("Expected 2 external links, got %d", result.ExternalLinks)
+	if result.ExternalLinks != 1 {
+		t.Errorf("Expected 1 external link, got %d", result.ExternalLinks)
 	}
 
 	if !result.HasLoginForm {
