@@ -3,12 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"html/template"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"web-page-analyzer/analyzer"
+	"web-page-analyzer/logger"
 )
 
 type Server struct {
@@ -48,7 +48,7 @@ func (s *Server) IndexHandler(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "text/html")
 	if err := s.template.Execute(w, nil); err != nil {
-		log.Printf("Template execution error: %v", err)
+		logger.Sugar.Errorw("Template execution error", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -96,7 +96,7 @@ func (s *Server) AnalyzeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(statusCode)
 	
 	if err := json.NewEncoder(w).Encode(result); err != nil {
-		log.Printf("JSON encoding error: %v", err)
+		logger.Sugar.Errorw("JSON encoding error", "error", err)
 		// Don't change status code here as we've already written it
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

@@ -2,10 +2,11 @@ package middleware
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"runtime/debug"
 	"time"
+
+	"web-page-analyzer/logger"
 )
 
 // ResponseWriter wraps http.ResponseWriter to capture status code
@@ -28,7 +29,10 @@ func PanicRecovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("Panic recovered: %v\nStack trace: %s", err, debug.Stack())
+				logger.Sugar.Errorw("Panic recovered", 
+					"error", err,
+					"stack_trace", string(debug.Stack()),
+				)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
 		}()
@@ -49,14 +53,9 @@ func Logging(next http.Handler) http.Handler {
 		
 		// Log request details
 		duration := time.Since(start)
-		log.Printf(
-			"method=%s path=%s status=%d duration=%v remote_addr=%s user_agent=%s",
-			r.Method,
-			r.URL.Path,
-			rw.statusCode,
-			duration,
-			r.RemoteAddr,
-			r.UserAgent(),
+		logger.WithRequest(r.Method, r.URL.Path, r.RemoteAddr, r.UserAgent()).Infow("HTTP request completed",
+			"status", rw.statusCode,
+			"duration", duration,
 		)
 	})
 }
@@ -113,7 +112,9 @@ func Timeout(timeout time.Duration) func(http.Handler) http.Handler {
 				// Request completed successfully
 			case <-ctx.Done():
 				// Request timed out
-				log.Printf("Request timeout after %v: %s %s", timeout, r.Method, r.URL.Path)
+				logger.WithRequest(r.Method, r.URL.Path, r.RemoteAddr, r.UserAgent()).Errorw("Request timeout",
+					"timeout", timeout,
+				)
 				http.Error(w, "Request Timeout", http.StatusRequestTimeout)
 			}
 		})

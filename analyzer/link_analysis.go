@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"web-page-analyzer/logger"
 )
 
 // analyzeLinksConcurrent analyzes links concurrently using a worker pool
@@ -46,7 +48,10 @@ func (a *Analyzer) analyzeLinksConcurrent(links []string, baseURL *url.URL, resu
 			resultsReceived++
 			
 			if linkResult.Error != nil {
-				a.logger.Printf("analyzer link_error link=%q error=%v", linkResult.Link, linkResult.Error)
+				logger.WithAnalysis(baseURL.String()).Errorw("Link analysis error",
+					"link", linkResult.Link,
+					"error", linkResult.Error,
+				)
 				continue
 			}
 			
@@ -56,12 +61,17 @@ func (a *Analyzer) analyzeLinksConcurrent(links []string, baseURL *url.URL, resu
 				externalCount++
 				if !linkResult.IsAccessible {
 					inaccessibleCount++
-					a.logger.Printf("analyzer link_inaccessible link=%q", linkResult.Link)
+					logger.WithAnalysis(baseURL.String()).Infow("Link inaccessible",
+						"link", linkResult.Link,
+					)
 				}
 			}
 			
 		case <-timeout:
-			a.logger.Printf("analyzer link_analysis_timeout links_processed=%d total=%d", resultsReceived, len(links))
+			logger.WithAnalysis(baseURL.String()).Warnw("Link analysis timeout",
+				"links_processed", resultsReceived,
+				"total_links", len(links),
+			)
 			goto done
 		}
 	}
@@ -74,8 +84,15 @@ done:
 	result.ExternalLinks = externalCount
 	result.InaccessibleLinks = inaccessibleCount
 	
-	a.logger.Printf("analyzer links_analyzed_concurrent url=%q total=%d skipped=%d internal=%d external=%d inaccessible=%d ms=%d workers=%d",
-		baseURL.String(), len(links), len(links)-resultsReceived, internalCount, externalCount, inaccessibleCount, duration.Milliseconds(), workers)
+	logger.WithAnalysis(baseURL.String()).Infow("Links analysis completed",
+		"total", len(links),
+		"skipped", len(links)-resultsReceived,
+		"internal", internalCount,
+		"external", externalCount,
+		"inaccessible", inaccessibleCount,
+		"duration_ms", duration.Milliseconds(),
+		"workers", workers,
+	)
 }
 
 // calculateOptimalWorkers calculates the optimal number of workers based on link count

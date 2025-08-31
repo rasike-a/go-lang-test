@@ -3,9 +3,10 @@ package analyzer
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"log"
 	"sync"
 	"time"
+
+	"web-page-analyzer/logger"
 )
 
 // CacheManager handles caching operations for analysis results
@@ -15,17 +16,15 @@ type CacheManager struct {
 	ttl           time.Duration
 	cleanupTicker *time.Ticker
 	stopChan      chan struct{}
-	logger        *log.Logger
 	verbose       bool // Control logging verbosity
 }
 
 // NewCacheManager creates a new cache manager
-func NewCacheManager(ttl time.Duration, logger *log.Logger) *CacheManager {
+func NewCacheManager(ttl time.Duration) *CacheManager {
 	cm := &CacheManager{
 		cache:    make(map[string]*CacheEntry),
 		ttl:      ttl,
 		stopChan: make(chan struct{}),
-		logger:   logger,
 		verbose:  false, // Default to quiet logging
 	}
 	cm.startCleanup()
@@ -92,7 +91,7 @@ func (cm *CacheManager) Get(url string) (*AnalysisResult, bool) {
 	}
 	
 	if cm.verbose {
-		cm.logger.Printf("analyzer cache_hit url=%q", url)
+		logger.WithCache("hit", url).Info("Cache hit")
 	}
 	return entry.Result, true
 }
@@ -111,7 +110,7 @@ func (cm *CacheManager) Set(url string, result *AnalysisResult) {
 	}
 	
 	if cm.verbose {
-		cm.logger.Printf("analyzer cache_set url=%q", url)
+		logger.WithCache("set", url).Info("Cache set")
 	}
 }
 
@@ -134,10 +133,16 @@ func (cm *CacheManager) clearExpired() {
 	
 	// Only log if we actually removed expired entries or if cache is getting large
 	if expiredCount > 0 {
-		cm.logger.Printf("analyzer cache_cleanup_completed expired_removed=%d entries_remaining=%d", expiredCount, remainingCount)
+		logger.WithComponent("cache").Infow("Cache cleanup completed",
+			"expired_removed", expiredCount,
+			"entries_remaining", remainingCount,
+		)
 	} else if cm.verbose && remainingCount > 10 {
 		// Log occasionally when cache is large but no cleanup needed (only in verbose mode)
-		cm.logger.Printf("analyzer cache_status entries=%d (no_expired)", remainingCount)
+		logger.WithComponent("cache").Infow("Cache status",
+			"entries", remainingCount,
+			"status", "no_expired",
+		)
 	}
 }
 

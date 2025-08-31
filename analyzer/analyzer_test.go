@@ -356,8 +356,7 @@ func TestAnalyzeURL_URLWithoutScheme(t *testing.T) {
 }
 
 func TestCacheManager(t *testing.T) {
-	logger := log.New(io.Discard, "", 0)
-	cache := NewCacheManager(100*time.Millisecond, logger)
+	cache := NewCacheManager(100*time.Millisecond)
 	
 	// Test cache operations
 	result := &AnalysisResult{URL: "test.com"}

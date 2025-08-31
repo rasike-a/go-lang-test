@@ -12,12 +12,17 @@ import (
 	"time"
 
 	"web-page-analyzer/handlers"
+	"web-page-analyzer/logger"
 	"web-page-analyzer/middleware"
 )
 
 var startTime = time.Now()
 
 func main() {
+	// Initialize structured logger
+	logger.Init()
+	defer logger.Sync()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -80,37 +85,37 @@ func main() {
 		MaxHeaderBytes: 1 << 20, // 1MB
 	}
 
-	// Start server in goroutine
-	go func() {
-		log.Printf("Server starting on port %s", port)
-		log.Printf("Visit http://localhost:%s to use the application", port)
-		log.Printf("Metrics available at http://localhost:%s/metrics", port)
-		if os.Getenv("ENV") != "production" {
-			log.Printf("Profiling available at http://localhost:%s/debug/pprof/", port)
-		}
-		
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Server failed to start:", err)
-		}
-	}()
+			// Start server in goroutine
+		go func() {
+			logger.Sugar.Infof("Server starting on port %s", port)
+			logger.Sugar.Infof("Visit http://localhost:%s to use the application", port)
+			logger.Sugar.Infof("Metrics available at http://localhost:%s/metrics", port)
+			if os.Getenv("ENV") != "production" {
+				logger.Sugar.Infof("Profiling available at http://localhost:%s/debug/pprof/", port)
+			}
 
-	// Wait for interrupt signal to gracefully shutdown the server
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Sugar.Fatal("Server failed to start:", err)
+			}
+		}()
 
-	log.Println("Server shutting down...")
+			// Wait for interrupt signal to gracefully shutdown the server
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
+
+		logger.Sugar.Info("Server shutting down...")
 
 	// Create shutdown context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Attempt graceful shutdown
-	if err := httpServer.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
-	}
+			// Attempt graceful shutdown
+		if err := httpServer.Shutdown(ctx); err != nil {
+			logger.Sugar.Fatal("Server forced to shutdown:", err)
+		}
 
-	log.Println("Server exited gracefully")
+		logger.Sugar.Info("Server exited gracefully")
 }
 
 // handleMetrics returns analyzer performance metrics
@@ -165,10 +170,10 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 		"uptime":    uptime.String(),
 	}
 	
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Health response encoding error: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+			logger.Sugar.Errorw("Health response encoding error", "error", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 }
 
 // handleCacheLogging controls cache logging verbosity
@@ -191,7 +196,7 @@ func handleCacheLogging(w http.ResponseWriter, r *http.Request, server *handlers
 		}
 		
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("Cache logging response encoding error: %v", err)
+			logger.Sugar.Errorw("Cache logging response encoding error", "error", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 		return
@@ -209,10 +214,10 @@ func handleCacheLogging(w http.ResponseWriter, r *http.Request, server *handlers
 		switch verbose {
 		case "true":
 			analyzer.SetCacheVerbose(true)
-			log.Println("Cache verbose logging enabled")
+			logger.Sugar.Info("Cache verbose logging enabled")
 		case "false":
 			analyzer.SetCacheVerbose(false)
-			log.Println("Cache verbose logging disabled")
+			logger.Sugar.Info("Cache verbose logging disabled")
 		default:
 			http.Error(w, "Invalid verbose parameter. Use 'true' or 'false'", http.StatusBadRequest)
 			return
@@ -226,7 +231,7 @@ func handleCacheLogging(w http.ResponseWriter, r *http.Request, server *handlers
 		}
 		
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("Cache logging response encoding error: %v", err)
+			logger.Sugar.Errorw("Cache logging response encoding error", "error", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 		return

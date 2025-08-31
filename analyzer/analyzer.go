@@ -2,23 +2,21 @@ package analyzer
 
 import (
 	"context"
-	"io"
-	"log"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/net/html"
+	"web-page-analyzer/logger"
 )
 
 // Analyzer is the main analyzer that orchestrates web page analysis
 type Analyzer struct {
 	httpClient     *http.Client
 	timeout        time.Duration
-	logger         *log.Logger
 	circuitBreaker *CircuitBreaker
 	
 	// Modular components
@@ -59,26 +57,22 @@ func NewAnalyzer(timeout time.Duration) *Analyzer {
 		},
 	}
 
-	// Create logger
-	logger := log.New(os.Stdout, "analyzer ", log.LstdFlags)
-
 	analyzer := &Analyzer{
 		httpClient:     httpClient,
 		timeout:        timeout,
-		logger:         logger,
 		circuitBreaker: NewCircuitBreaker(5, 30*time.Second, 2),
 		httpClientPool: httpClientPool,
-		cacheManager:   NewCacheManager(5*time.Minute, logger),
+		cacheManager:   NewCacheManager(5*time.Minute),
 		metricsManager: NewMetricsManager(),
 	}
 
 	return analyzer
 }
 
-// SetLogger sets a custom logger for the analyzer
-func (a *Analyzer) SetLogger(logger *log.Logger) {
-	a.logger = logger
-	a.cacheManager.logger = logger
+// SetLogger sets a custom logger for the analyzer (deprecated - now uses structured logging)
+func (a *Analyzer) SetLogger(_ interface{}) {
+	// This method is deprecated as we now use structured logging
+	// The logger parameter is ignored
 }
 
 // SetCacheVerbose enables or disables verbose cache logging
@@ -153,8 +147,16 @@ func (a *Analyzer) AnalyzeURLWithContext(ctx context.Context, targetURL string) 
 	a.updateMetrics(startTime)
 	
 	// Log completion
-	a.logger.Printf("analyzer analyze_done url=%q total_ms=%d internal=%d external=%d inaccessible=%d headings=%d login_form=%t html_version=%q title_len=%d",
-		targetURL, time.Since(startTime).Milliseconds(), result.InternalLinks, result.ExternalLinks, result.InaccessibleLinks, len(result.HeadingCounts), result.HasLoginForm, result.HTMLVersion, len(result.PageTitle))
+	logger.WithAnalysis(targetURL).Infow("Analysis completed",
+		"total_ms", time.Since(startTime).Milliseconds(),
+		"internal_links", result.InternalLinks,
+		"external_links", result.ExternalLinks,
+		"inaccessible_links", result.InaccessibleLinks,
+		"headings", len(result.HeadingCounts),
+		"login_form", result.HasLoginForm,
+		"html_version", result.HTMLVersion,
+		"title_len", len(result.PageTitle),
+	)
 	
 	return result
 }
@@ -214,7 +216,7 @@ func (a *Analyzer) performAnalysis(ctx context.Context, parsedURL *url.URL, resu
 	}
 	
 	// Read response body
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
