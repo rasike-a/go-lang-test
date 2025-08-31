@@ -7,10 +7,13 @@ import (
 
 // NewAnalysisWorkerPool creates a new worker pool for link analysis
 func NewAnalysisWorkerPool(workers int, analyzer *Analyzer) *AnalysisWorkerPool {
+	// Increase buffer sizes for high-throughput processing
+	bufferSize := workers * 4 // 4x buffer for better throughput
+	
 	return &AnalysisWorkerPool{
 		workers:  workers,
-		jobQueue: make(chan AnalysisJob, workers*2),
-		results:  make(chan LinkResult, workers*2),
+		jobQueue: make(chan AnalysisJob, bufferSize),
+		results:  make(chan LinkResult, bufferSize),
 		stopChan: make(chan struct{}),
 		analyzer: analyzer,
 	}
@@ -36,8 +39,10 @@ func (wp *AnalysisWorkerPool) Stop() {
 func (wp *AnalysisWorkerPool) SubmitJob(job AnalysisJob) {
 	select {
 	case wp.jobQueue <- job:
+		// Job submitted successfully
 	default:
-		// Job queue is full, process synchronously
+		// Job queue is full, process synchronously for high-throughput
+		// This prevents blocking when processing many links
 		wp.processJob(job)
 	}
 }

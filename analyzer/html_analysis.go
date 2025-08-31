@@ -160,6 +160,7 @@ func (a *Analyzer) extractLinks(doc *html.Node) []string {
 	}
 	
 	traverse(doc)
+	
 	return links
 }
 

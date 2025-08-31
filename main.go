@@ -53,7 +53,7 @@ func main() {
 		middleware.Logging,
 		middleware.CORS,
 		middleware.SecurityHeaders,
-		middleware.Timeout(30*time.Second),
+		middleware.Timeout(60*time.Second), // Increased timeout for complex sites
 	)
 
 	// Serve static files with middleware
@@ -106,8 +106,8 @@ func main() {
 
 		logger.Sugar.Info("Server shutting down...")
 
-	// Create shutdown context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// Create context with timeout for graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout
 	defer cancel()
 
 			// Attempt graceful shutdown

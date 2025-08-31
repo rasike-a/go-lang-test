@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -60,7 +61,7 @@ func NewAnalyzer(timeout time.Duration) *Analyzer {
 	analyzer := &Analyzer{
 		httpClient:     httpClient,
 		timeout:        timeout,
-		circuitBreaker: NewCircuitBreaker(5, 30*time.Second, 2),
+		circuitBreaker: NewCircuitBreaker(5, 60*time.Second, 2), // Increased timeout for complex sites
 		httpClientPool: httpClientPool,
 		cacheManager:   NewCacheManager(5*time.Minute),
 		metricsManager: NewMetricsManager(),
@@ -194,12 +195,13 @@ func (a *Analyzer) performAnalysis(ctx context.Context, parsedURL *url.URL, resu
 	req.Header.Set("User-Agent", "WebPageAnalyzer/1.0")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	req.Header.Set("Accept-Encoding", "gzip, deflate")
+	// Explicitly tell server not to compress
+	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("Connection", "keep-alive")
 	
 	// Get HTTP client from pool
-	client := a.getHTTPClient()
-	defer a.putHTTPClient(client)
+	client := a.httpClientPool.Get().(*http.Client)
+	defer a.httpClientPool.Put(client)
 	
 	// Make request
 	resp, err := client.Do(req)
@@ -207,6 +209,14 @@ func (a *Analyzer) performAnalysis(ctx context.Context, parsedURL *url.URL, resu
 		return err
 	}
 	defer resp.Body.Close()
+	
+	// Debug: Log response headers
+	logger.WithAnalysis(parsedURL.String()).Infow("HTTP response received", 
+		"status", resp.StatusCode,
+		"content_length", resp.ContentLength,
+		"content_encoding", resp.Header.Get("Content-Encoding"),
+		"content_type", resp.Header.Get("Content-Type"),
+	)
 	
 	// Check response status
 	if resp.StatusCode >= 400 {
@@ -224,7 +234,14 @@ func (a *Analyzer) performAnalysis(ctx context.Context, parsedURL *url.URL, resu
 	// Parse HTML
 	doc, err := html.Parse(strings.NewReader(string(body)))
 	if err != nil {
+		logger.WithAnalysis(parsedURL.String()).Errorw("HTML parsing failed", "error", err, "body_length", len(body))
 		return err
+	}
+	
+	// Check if parsing succeeded
+	if doc == nil {
+		logger.WithAnalysis(parsedURL.String()).Errorw("HTML parsing returned nil document", "body_length", len(body))
+		return fmt.Errorf("HTML parsing returned nil document")
 	}
 	
 	// Analyze document

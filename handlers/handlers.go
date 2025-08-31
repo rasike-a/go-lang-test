@@ -18,7 +18,8 @@ type Server struct {
 
 // NewServer creates a new server instance
 func NewServer() *Server {
-	analyzer := analyzer.NewAnalyzer(30 * time.Second)
+	// Create analyzer instance
+	analyzer := analyzer.NewAnalyzer(60 * time.Second) // Increased timeout for complex sites
 	
 	// Control cache logging verbosity based on environment
 	if os.Getenv("CACHE_VERBOSE") == "true" || os.Getenv("ENV") == "development" {
