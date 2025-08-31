@@ -67,7 +67,14 @@ func WithFields(fields map[string]interface{}) *zap.SugaredLogger {
 	if Sugar == nil {
 		Init()
 	}
-	return Sugar.With(fields)
+	
+	// Convert map to key-value pairs for Sugar.With()
+	var args []interface{}
+	for k, v := range fields {
+		args = append(args, k, v)
+	}
+	
+	return Sugar.With(args...)
 }
 
 // WithComponent creates a logger with component field
