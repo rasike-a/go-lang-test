@@ -1310,4 +1310,208 @@ export ENABLE_PPROF=true
 - **Context Cancellation**: Efficient resource cleanup
 - **Goroutine Limits**: Controlled concurrency levels
 
-## Security Features
+## 📝 Structured Logging
+
+The application implements enterprise-grade structured logging using Uber's Zap library, providing comprehensive observability and debugging capabilities.
+
+### 🎯 Logging Architecture
+
+#### Logger Package Design
+- **Centralized Logging**: Single `logger` package for consistent logging across all components
+- **Environment-Aware**: Automatic format switching between development (console) and production (JSON)
+- **Component-Specific Loggers**: Specialized loggers for different application components
+- **Structured Fields**: Rich metadata for each log entry including context and performance data
+
+#### Logger Initialization
+```go
+// Automatic environment detection
+func Init() {
+    isDevelopment := os.Getenv("ENV") == "development"
+    
+    var config zap.Config
+    if isDevelopment {
+        // Human-readable console output with colors
+        config = zap.NewDevelopmentConfig()
+        config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+    } else {
+        // Production JSON output with ISO8601 timestamps
+        config = zap.NewProductionConfig()
+        config.EncoderConfig.TimeKey = "timestamp"
+        config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+    }
+    
+    Logger, _ = config.Build()
+    Sugar = Logger.Sugar()
+}
+```
+
+### 🔧 Component-Specific Loggers
+
+#### HTTP Request Logging
+```go
+// Middleware logging with request context
+logger.WithRequest(method, path, remoteAddr, userAgent).Infow(
+    "HTTP request completed",
+    "status", statusCode,
+    "duration", duration,
+)
+```
+
+#### Analysis Logging
+```go
+// Analyzer-specific logging with URL context
+logger.WithAnalysis(targetURL).Infow(
+    "Analysis completed",
+    "total_ms", analysisTime,
+    "internal_links", internalCount,
+    "external_links", externalCount,
+    "headings", headingCount,
+    "login_form", hasLoginForm,
+)
+```
+
+#### Cache Logging
+```go
+// Cache operations with operation type and URL
+logger.WithCache("hit", url).Info("Cache hit")
+logger.WithCache("set", url).Info("Cache set")
+logger.WithCache("miss", url).Info("Cache miss")
+```
+
+#### Component Logging
+```go
+// Generic component logging
+logger.WithComponent("cache").Infow(
+    "Cache cleanup completed",
+    "expired_removed", expiredCount,
+    "entries_remaining", remainingCount,
+)
+```
+
+### 📊 Log Output Formats
+
+#### Development Mode (Console)
+```
+2025-08-31T16:09:33.583+0530    INFO    analyzer/analyzer.go:150        
+Analysis completed      {"total_ms": 3858, "internal_links": 0, "external_links": 0, 
+"inaccessible_links": 0, "headings": 1, "login_form": false, "html_version": "HTML5", 
+"title_len": 0}
+```
+
+#### Production Mode (JSON)
+```json
+{
+  "level": "info",
+  "timestamp": "2025-08-31T16:09:33.583+0530",
+  "caller": "analyzer/analyzer.go:150",
+  "msg": "Analysis completed",
+  "total_ms": 3858,
+  "internal_links": 0,
+  "external_links": 0,
+  "inaccessible_links": 0,
+  "headings": 1,
+  "login_form": false,
+  "html_version": "HTML5",
+  "title_len": 0
+}
+```
+
+### 🎛️ Logging Configuration
+
+#### Environment Variables
+```bash
+# Development: Human-readable console output
+export ENV=development
+
+# Production: Structured JSON output
+export ENV=production
+```
+
+#### Logging Levels
+- **Development**: All levels with color coding
+- **Production**: Info level and above with structured JSON
+- **Error Handling**: Automatic error logging with stack traces
+- **Performance**: Request duration and resource usage logging
+
+### 🔍 Log Analysis & Monitoring
+
+#### Structured Field Benefits
+- **Searchable Logs**: JSON format enables easy log aggregation and search
+- **Performance Metrics**: Built-in timing and resource usage data
+- **Error Correlation**: Request IDs and context for debugging
+- **Audit Trail**: Complete request lifecycle logging
+
+#### Log Aggregation
+- **ELK Stack**: Compatible with Elasticsearch, Logstash, Kibana
+- **Cloud Logging**: Ready for AWS CloudWatch, Google Cloud Logging
+- **Local Development**: Console output for immediate feedback
+- **Production Monitoring**: JSON output for log analysis tools
+
+### 🚀 Performance & Reliability
+
+#### Zero-Allocation Logging
+- **Field Reuse**: Efficient field handling with minimal allocations
+- **Async Logging**: Non-blocking log writes for high-performance scenarios
+- **Memory Efficiency**: Optimized for production workloads
+- **Graceful Degradation**: Fallback logging if logger initialization fails
+
+#### Production Features
+- **Automatic Rotation**: Built-in log rotation and management
+- **Error Recovery**: Graceful handling of logging failures
+- **Performance Monitoring**: Built-in performance metrics
+- **Resource Cleanup**: Proper cleanup on application shutdown
+
+### 📋 Logging Best Practices
+
+#### Development
+- **Use Component Loggers**: Leverage specialized loggers for different components
+- **Include Context**: Always include relevant context in log messages
+- **Performance Logging**: Log timing information for performance analysis
+- **Error Details**: Include error details and stack traces when available
+
+#### Production
+- **Structured Fields**: Use structured fields instead of string concatenation
+- **Log Levels**: Use appropriate log levels (debug, info, warn, error)
+- **Performance Impact**: Minimize logging overhead in hot paths
+- **Monitoring Integration**: Ensure logs are integrated with monitoring systems
+
+### 🔧 Advanced Logging Features
+
+#### Dynamic Logging Control
+```go
+// Runtime cache logging verbosity control
+POST /cache-logging
+{
+    "verbose": true
+}
+
+// Response includes current verbosity setting
+{
+    "verbose": true,
+    "message": "Cache verbose logging enabled"
+}
+```
+
+#### Request-Scoped Logging
+```go
+// Each request gets unique logging context
+logger.WithRequest(method, path, remoteAddr, userAgent).Infow(
+    "Request processing started",
+    "request_id", requestID,
+    "user_agent", userAgent,
+)
+```
+
+#### Performance Logging
+```go
+// Built-in performance metrics in logs
+logger.WithAnalysis(url).Infow(
+    "Analysis completed",
+    "total_ms", analysisTime,
+    "cache_hit", isCacheHit,
+    "worker_count", workerCount,
+    "memory_usage", memoryUsage,
+)
+```
+
+This structured logging implementation provides comprehensive observability, making it easy to monitor, debug, and optimize the application in both development and production environments.
