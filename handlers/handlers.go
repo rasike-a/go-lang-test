@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"web-page-analyzer/analyzer"
@@ -15,11 +16,21 @@ type Server struct {
 	template *template.Template
 }
 
+// NewServer creates a new server instance
 func NewServer() *Server {
+	analyzer := analyzer.NewAnalyzer(30 * time.Second)
+	
+	// Control cache logging verbosity based on environment
+	if os.Getenv("CACHE_VERBOSE") == "true" || os.Getenv("ENV") == "development" {
+		analyzer.SetCacheVerbose(true)
+	} else {
+		analyzer.SetCacheVerbose(false)
+	}
+	
 	tmpl := template.Must(template.New("index").Parse(indexHTML))
 	
 	return &Server{
-		analyzer: analyzer.NewAnalyzer(30 * time.Second),
+		analyzer: analyzer,
 		template: tmpl,
 	}
 }

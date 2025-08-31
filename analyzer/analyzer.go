@@ -81,6 +81,11 @@ func (a *Analyzer) SetLogger(logger *log.Logger) {
 	a.cacheManager.logger = logger
 }
 
+// SetCacheVerbose enables or disables verbose cache logging
+func (a *Analyzer) SetCacheVerbose(verbose bool) {
+	a.cacheManager.SetVerbose(verbose)
+}
+
 // GetMetrics returns current performance metrics
 func (a *Analyzer) GetMetrics() MetricsManager {
 	return a.metricsManager.GetMetrics()

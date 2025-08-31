@@ -15,6 +15,8 @@ import (
 	"web-page-analyzer/middleware"
 )
 
+var startTime = time.Now()
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -36,6 +38,8 @@ func main() {
 				handleMetrics(w, r, server)
 			case "/health":
 				handleHealth(w, r)
+			case "/cache-logging":
+				handleCacheLogging(w, r, server)
 			default:
 				http.NotFound(w, r)
 			}
@@ -150,17 +154,83 @@ func handleMetrics(w http.ResponseWriter, r *http.Request, server *handlers.Serv
 	json.NewEncoder(w).Encode(response)
 }
 
-// handleHealth returns server health status
+// handleHealth returns system health status
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	
+	uptime := time.Since(startTime)
 	response := map[string]interface{}{
 		"status":    "healthy",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"uptime":    time.Since(startTime).String(),
+		"uptime":    uptime.String(),
 	}
 	
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Health response encoding error: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
-var startTime = time.Now()
+// handleCacheLogging controls cache logging verbosity
+func handleCacheLogging(w http.ResponseWriter, r *http.Request, server *handlers.Server) {
+	if r.Method == http.MethodGet {
+		// Get current cache logging status
+		analyzer := server.GetAnalyzer()
+		if analyzer == nil {
+			http.Error(w, "Analyzer not available", http.StatusServiceUnavailable)
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]interface{}{
+			"cache_logging": "Use POST to control cache logging verbosity",
+			"usage": map[string]string{
+				"POST /cache-logging?verbose=true":  "Enable verbose cache logging",
+				"POST /cache-logging?verbose=false": "Disable verbose cache logging",
+			},
+		}
+		
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("Cache logging response encoding error: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+		return
+	}
+	
+	if r.Method == http.MethodPost {
+		// Control cache logging verbosity
+		verbose := r.URL.Query().Get("verbose")
+		analyzer := server.GetAnalyzer()
+		if analyzer == nil {
+			http.Error(w, "Analyzer not available", http.StatusServiceUnavailable)
+			return
+		}
+		
+		switch verbose {
+		case "true":
+			analyzer.SetCacheVerbose(true)
+			log.Println("Cache verbose logging enabled")
+		case "false":
+			analyzer.SetCacheVerbose(false)
+			log.Println("Cache verbose logging disabled")
+		default:
+			http.Error(w, "Invalid verbose parameter. Use 'true' or 'false'", http.StatusBadRequest)
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]interface{}{
+			"cache_logging": verbose == "true",
+			"message":       "Cache logging verbosity updated",
+			"timestamp":     time.Now().UTC().Format(time.RFC3339),
+		}
+		
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("Cache logging response encoding error: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+		return
+	}
+	
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}

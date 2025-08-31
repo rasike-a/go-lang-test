@@ -10,32 +10,32 @@ import (
 
 // CacheManager handles caching operations for analysis results
 type CacheManager struct {
-	cache      map[string]*CacheEntry
-	mutex      sync.RWMutex
-	ttl        time.Duration
-	logger     *log.Logger
+	cache         map[string]*CacheEntry
+	mutex         sync.RWMutex
+	ttl           time.Duration
 	cleanupTicker *time.Ticker
-	stopChan   chan struct{}
+	stopChan      chan struct{}
+	logger        *log.Logger
+	verbose       bool // Control logging verbosity
 }
 
 // NewCacheManager creates a new cache manager
 func NewCacheManager(ttl time.Duration, logger *log.Logger) *CacheManager {
 	cm := &CacheManager{
-		cache:      make(map[string]*CacheEntry),
-		ttl:        ttl,
-		logger:     logger,
-		stopChan:   make(chan struct{}),
+		cache:    make(map[string]*CacheEntry),
+		ttl:      ttl,
+		stopChan: make(chan struct{}),
+		logger:   logger,
+		verbose:  false, // Default to quiet logging
 	}
-	
-	// Start cache cleanup goroutine
 	cm.startCleanup()
-	
 	return cm
 }
 
 // startCleanup starts the background cache cleanup process
 func (cm *CacheManager) startCleanup() {
-	cm.cleanupTicker = time.NewTicker(1 * time.Minute)
+	// Run cleanup every 5 minutes instead of every minute to reduce log noise
+	cm.cleanupTicker = time.NewTicker(5 * time.Minute)
 	go func() {
 		for {
 			select {
@@ -63,6 +63,11 @@ func (cm *CacheManager) generateCacheKey(url string) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// SetVerbose enables or disables verbose logging
+func (cm *CacheManager) SetVerbose(verbose bool) {
+	cm.verbose = verbose
+}
+
 // Get retrieves a result from cache if it exists and is not expired
 func (cm *CacheManager) Get(url string) (*AnalysisResult, bool) {
 	key := cm.generateCacheKey(url)
@@ -86,7 +91,9 @@ func (cm *CacheManager) Get(url string) (*AnalysisResult, bool) {
 		return nil, false
 	}
 	
-	cm.logger.Printf("analyzer cache_hit url=%q", url)
+	if cm.verbose {
+		cm.logger.Printf("analyzer cache_hit url=%q", url)
+	}
 	return entry.Result, true
 }
 
@@ -103,7 +110,9 @@ func (cm *CacheManager) Set(url string, result *AnalysisResult) {
 		TTL:       cm.ttl,
 	}
 	
-	cm.logger.Printf("analyzer cache_set url=%q", url)
+	if cm.verbose {
+		cm.logger.Printf("analyzer cache_set url=%q", url)
+	}
 }
 
 // clearExpired removes expired cache entries
@@ -112,15 +121,24 @@ func (cm *CacheManager) clearExpired() {
 	defer cm.mutex.Unlock()
 	
 	now := time.Now()
+	expiredCount := 0
 	
 	for key, entry := range cm.cache {
 		if now.Sub(entry.Timestamp) > entry.TTL {
 			delete(cm.cache, key)
+			expiredCount++
 		}
 	}
 	
 	remainingCount := len(cm.cache)
-	cm.logger.Printf("analyzer cache_cleanup_completed entries_remaining=%d", remainingCount)
+	
+	// Only log if we actually removed expired entries or if cache is getting large
+	if expiredCount > 0 {
+		cm.logger.Printf("analyzer cache_cleanup_completed expired_removed=%d entries_remaining=%d", expiredCount, remainingCount)
+	} else if cm.verbose && remainingCount > 10 {
+		// Log occasionally when cache is large but no cleanup needed (only in verbose mode)
+		cm.logger.Printf("analyzer cache_status entries=%d (no_expired)", remainingCount)
+	}
 }
 
 // GetStats returns cache statistics
