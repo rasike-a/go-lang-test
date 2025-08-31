@@ -41,10 +41,20 @@
 
 ### Architecture
 - **Package Structure**: Separated concerns into `analyzer` (business logic), `handlers` (web layer), and `middleware` (cross-cutting concerns) packages
+- **Modular Analyzer**: The analyzer package is now organized into focused modules:
+  - `types.go` - Core data structures and types
+  - `cache.go` - Caching functionality with TTL and cleanup
+  - `metrics.go` - Performance metrics and monitoring
+  - `worker_pool.go` - Concurrent link analysis worker pool
+  - `html_analysis.go` - HTML parsing and analysis logic
+  - `link_analysis.go` - Link processing and accessibility checking
+  - `login_detection.go` - Login form detection logic
+  - `analyzer.go` - Main orchestration and coordination
 - **Dependency Injection**: Analyzer is injected into handlers for better testability
 - **Template-Based Rendering**: HTML templates are served externally for better maintainability
 - **Layered Architecture**: Clean separation between presentation, business logic, and data layers
 - **Middleware Chain**: Comprehensive middleware stack for logging, CORS, security, and error handling
+- **Single Responsibility**: Each module has a clear, focused purpose for better maintainability
 
 ### Libraries Used
 - **golang.org/x/net/html**: For robust HTML parsing instead of regex-based solutions
