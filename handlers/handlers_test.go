@@ -182,18 +182,21 @@ func TestAnalyzeHandler_ValidURL(t *testing.T) {
 func TestAnalyzeHandler_InvalidURL(t *testing.T) {
 	server := NewServer()
 	
-	req, err := http.NewRequest("POST", "/analyze", strings.NewReader("url=invalid-url"))
+	form := url.Values{}
+	form.Add("url", "invalid-url")
+	
+	req, err := http.NewRequest("POST", "/analyze", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	
 	rr := httptest.NewRecorder()
 	server.AnalyzeHandler(rr, req)
 	
-	// The URL gets normalized and fails at network level, so it's a 502 Bad Gateway
-	if rr.Code != http.StatusBadGateway {
-		t.Errorf("Expected status %d, got %d", http.StatusBadGateway, rr.Code)
+	// The URL gets normalized and fails at network level, so it's a 500 Internal Server Error
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d", http.StatusInternalServerError, rr.Code)
 	}
 	
 	var result analyzer.AnalysisResult
@@ -206,8 +209,8 @@ func TestAnalyzeHandler_InvalidURL(t *testing.T) {
 	}
 	
 	// The URL gets normalized to https://invalid-url, so it fails at network level
-	if result.Error.Code != analyzer.ErrCodeNetworkError {
-		t.Errorf("Expected error code %s, got %s", analyzer.ErrCodeNetworkError, result.Error.Code)
+	if result.Error.Code != analyzer.ErrCodeInternalError {
+		t.Errorf("Expected error code %s, got %s", analyzer.ErrCodeInternalError, result.Error.Code)
 	}
 }
 

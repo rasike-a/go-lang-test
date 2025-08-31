@@ -24,6 +24,11 @@ func NewServer() *Server {
 	}
 }
 
+// GetAnalyzer returns the analyzer instance for metrics collection
+func (s *Server) GetAnalyzer() *analyzer.Analyzer {
+	return s.analyzer
+}
+
 func (s *Server) IndexHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
