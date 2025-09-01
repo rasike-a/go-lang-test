@@ -1100,29 +1100,42 @@ GOOS=windows GOARCH=amd64 go build -o web-page-analyzer.exe .
 ```
 
 ### Docker Deployment
-Create a `Dockerfile`:
 
-```dockerfile
-FROM golang:1.21-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN go build -o web-page-analyzer .
-
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-COPY --from=builder /app/web-page-analyzer .
-EXPOSE 8080
-CMD ["./web-page-analyzer"]
-```
-
-Build and run:
+#### Production Build
 ```bash
-docker build -t web-page-analyzer .
-docker run -p 8080:8080 web-page-analyzer
+# Build the Docker image
+docker build -t web-page-analyzer:latest .
+
+# Run the container
+docker run -d \
+  --name web-page-analyzer \
+  -p 8080:8080 \
+  --restart unless-stopped \
+  web-page-analyzer:latest
 ```
+
+#### Using Docker Compose (Recommended)
+```bash
+# Production deployment
+docker-compose up -d
+
+# Development with hot reload
+docker-compose --profile dev up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+#### Docker Features
+- **Multi-stage build** for smaller production images
+- **Non-root user** for security best practices
+- **Health checks** for container monitoring
+- **Resource limits** to prevent resource exhaustion
+- **Automatic restart** policies for reliability
+- **Production optimizations** with stripped binaries
 
 ## Environment Variables
 
