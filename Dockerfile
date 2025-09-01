@@ -38,6 +38,9 @@ WORKDIR /app
 # Copy binary from builder stage
 COPY --from=builder /app/web-page-analyzer .
 
+# Copy static files
+COPY --from=builder /app/static ./static
+
 # Change ownership to non-root user
 RUN chown -R appuser:appgroup /app
 
