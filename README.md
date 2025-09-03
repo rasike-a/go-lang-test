@@ -15,6 +15,19 @@ A sophisticated Go web application that analyzes web pages and provides detailed
 - **Accessibility Features**: ARIA attributes, keyboard shortcuts, and screen reader support
 - **Responsive Design**: Mobile-friendly layout with CSS custom properties
 
+## 🔍 Investigation & Analysis
+
+### Tesla.com Access Issue Investigation
+During testing, we discovered that Tesla.com implements sophisticated anti-bot protection that blocks automated analysis. This led to a comprehensive investigation documented in [`tesla.md`](tesla.md), which covers:
+
+- **Root Cause Analysis**: Bot detection mechanisms and access control
+- **Technical Details**: HTTP response analysis and error handling
+- **Impact Assessment**: Effects on analysis accuracy and user experience
+- **Recommended Solutions**: Enhanced error detection and user-agent rotation
+- **Lessons Learned**: Bot detection challenges and error page handling
+
+This investigation highlights the importance of robust error detection and transparent user communication when dealing with access restrictions.
+
 ## 🚀 Performance Improvements & Architecture
 
 The application has been significantly enhanced with enterprise-grade performance optimizations and modern Go patterns:

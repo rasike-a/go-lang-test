@@ -28,18 +28,19 @@ type Analyzer struct {
 
 // NewAnalyzer creates a new analyzer instance with optimized settings
 func NewAnalyzer(timeout time.Duration) *Analyzer {
-	// Create optimized transport
+	// Create optimized transport for faster link checking
 	transport := &http.Transport{
 		MaxIdleConns:          100,
-		MaxIdleConnsPerHost:   10,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
+		MaxIdleConnsPerHost:   20,  // Increased for better parallel link checking
+		IdleConnTimeout:       30 * time.Second,  // Reduced for faster cleanup
+		TLSHandshakeTimeout:   5 * time.Second,   // Reduced for faster TLS
 		ExpectContinueTimeout: 1 * time.Second,
 		DisableCompression:    false, // Enable gzip compression
 		ForceAttemptHTTP2:     true,  // Force HTTP/2 when possible
 		// Connection pooling optimizations
-		MaxConnsPerHost:       100,
+		MaxConnsPerHost:       50,   // Optimized for link checking
 		DisableKeepAlives:     false,
+		ResponseHeaderTimeout: 3 * time.Second,  // Fast response header timeout
 	}
 
 	// Create HTTP client with optimized transport

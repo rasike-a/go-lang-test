@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -172,9 +173,13 @@ func (a *Analyzer) processLinkParallel(link string, baseURL *url.URL) LinkResult
 	// Determine if link is internal or external
 	isInternal := linkURL.Hostname() == baseURL.Hostname()
 	
-	// For performance, assume most links are accessible
-	// This significantly improves performance for sites with many external links
-	isAccessible := true
+	// Check if link is accessible (only for external links to avoid infinite loops)
+	var isAccessible bool
+	if !isInternal {
+		isAccessible = a.isLinkAccessible(linkURL.String())
+	} else {
+		isAccessible = true // Assume internal links are accessible
+	}
 	
 	return LinkResult{
 		Link:        link,
@@ -225,10 +230,39 @@ func (a *Analyzer) isLinkAccessible(link string) bool {
 		return false
 	}
 	
-	// For performance, assume most links are accessible
-	// Only check a sample of links to avoid excessive HTTP requests
-	// This significantly improves performance for sites with many external links
-	return true
+	// Create HTTP request with timeout
+	client := a.getHTTPClient()
+	defer a.putHTTPClient(client)
+	
+	req, err := http.NewRequest("HEAD", link, nil)
+	if err != nil {
+		return false
+	}
+	
+	// Set realistic headers to avoid bot detection
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	req.Header.Set("Connection", "keep-alive")
+	
+	// Make request with optimized timeout (3 seconds for faster response)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx)
+	
+	resp, err := client.Do(req)
+	if err != nil {
+		// Log timeout or connection errors for debugging
+		if ctx.Err() == context.DeadlineExceeded {
+			logger.WithAnalysis(link).Debugw("Link check timeout", "timeout", "3s")
+		}
+		return false
+	}
+	defer resp.Body.Close()
+	
+	// Consider 2xx and 3xx status codes as accessible
+	// Early success detection - no need to wait longer once we get a response
+	return resp.StatusCode >= 200 && resp.StatusCode < 400
 }
 
 // getHTTPClient gets an HTTP client from the pool
