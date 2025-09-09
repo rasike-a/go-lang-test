@@ -98,7 +98,6 @@ func (s *Server) AnalyzeHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		logger.Sugar.Errorw("JSON encoding error", "error", err)
-		// Don't change status code here as we've already written it
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
