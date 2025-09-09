@@ -7,24 +7,24 @@ import (
 
 // Error codes for different types of errors
 const (
-	ErrCodeInvalidURL        = "INVALID_URL"
-	ErrCodeHTTPError         = "HTTP_ERROR"
-	ErrCodeNetworkError      = "NETWORK_ERROR"
-	ErrCodeParseError        = "PARSE_ERROR"
-	ErrCodeTimeoutError      = "TIMEOUT_ERROR"
-	ErrCodeValidationError   = "VALIDATION_ERROR"
-	ErrCodeInternalError     = "INTERNAL_ERROR"
+	ErrCodeInvalidURL      = "INVALID_URL"
+	ErrCodeHTTPError       = "HTTP_ERROR"
+	ErrCodeNetworkError    = "NETWORK_ERROR"
+	ErrCodeParseError      = "PARSE_ERROR"
+	ErrCodeTimeoutError    = "TIMEOUT_ERROR"
+	ErrCodeValidationError = "VALIDATION_ERROR"
+	ErrCodeInternalError   = "INTERNAL_ERROR"
 )
 
 // AnalysisError represents a structured error with additional context
 type AnalysisError struct {
-	Code      string    `json:"code"`
-	Message   string    `json:"message"`
-	Details   string    `json:"details,omitempty"`
-	URL       string    `json:"url,omitempty"`
-	Timestamp time.Time `json:"timestamp"`
+	Code       string    `json:"code"`
+	Message    string    `json:"message"`
+	Details    string    `json:"details,omitempty"`
+	URL        string    `json:"url,omitempty"`
+	Timestamp  time.Time `json:"timestamp"`
 	StatusCode int       `json:"status_code,omitempty"`
-	Cause     error     `json:"-"`
+	Cause      error     `json:"-"`
 }
 
 // Error implements the error interface

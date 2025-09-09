@@ -7,13 +7,13 @@ import (
 
 // MetricsManager handles performance metrics collection and reporting
 type MetricsManager struct {
-	mu              sync.RWMutex
-	TotalRequests   int64
-	ActiveRequests  int64
-	TotalDuration   time.Duration
-	AvgDuration     time.Duration
-	CacheHits       int64
-	CacheMisses     int64
+	mu             sync.RWMutex
+	TotalRequests  int64
+	ActiveRequests int64
+	TotalDuration  time.Duration
+	AvgDuration    time.Duration
+	CacheHits      int64
+	CacheMisses    int64
 }
 
 // NewMetricsManager creates a new metrics manager
@@ -25,7 +25,7 @@ func NewMetricsManager() *MetricsManager {
 func (mm *MetricsManager) GetMetrics() MetricsManager {
 	mm.mu.RLock()
 	defer mm.mu.RUnlock()
-	
+
 	return MetricsManager{
 		TotalRequests:  mm.TotalRequests,
 		ActiveRequests: mm.ActiveRequests,
@@ -40,10 +40,10 @@ func (mm *MetricsManager) GetMetrics() MetricsManager {
 func (mm *MetricsManager) updateMetrics(duration time.Duration) {
 	mm.mu.Lock()
 	defer mm.mu.Unlock()
-	
+
 	mm.TotalRequests++
 	mm.TotalDuration += duration
-	
+
 	// Calculate running average
 	if mm.TotalRequests > 0 {
 		mm.AvgDuration = mm.TotalDuration / time.Duration(mm.TotalRequests)
@@ -78,11 +78,11 @@ func (mm *MetricsManager) RecordCacheMiss() {
 	mm.CacheMisses++
 }
 
-// Reset resets all metrics to zero
+// Resets all metrics to zero
 func (mm *MetricsManager) Reset() {
 	mm.mu.Lock()
 	defer mm.mu.Unlock()
-	
+
 	mm.TotalRequests = 0
 	mm.ActiveRequests = 0
 	mm.TotalDuration = 0

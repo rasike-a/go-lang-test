@@ -20,16 +20,16 @@ type Server struct {
 func NewServer() *Server {
 	// Create analyzer instance
 	analyzer := analyzer.NewAnalyzer(60 * time.Second) // Increased timeout for complex sites
-	
+
 	// Control cache logging verbosity based on environment
 	if os.Getenv("CACHE_VERBOSE") == "true" || os.Getenv("ENV") == "development" {
 		analyzer.SetCacheVerbose(true)
 	} else {
 		analyzer.SetCacheVerbose(false)
 	}
-	
+
 	tmpl := template.Must(template.New("index").Parse(indexHTML))
-	
+
 	return &Server{
 		analyzer: analyzer,
 		template: tmpl,
@@ -46,7 +46,7 @@ func (s *Server) IndexHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "text/html")
 	if err := s.template.Execute(w, nil); err != nil {
 		logger.Sugar.Errorw("Template execution error", "error", err)
@@ -60,16 +60,16 @@ func (s *Server) AnalyzeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	url := r.FormValue("url")
 	if url == "" {
 		http.Error(w, "URL parameter is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Use context-aware analyzer
 	result := s.analyzer.AnalyzeURLWithContext(r.Context(), url)
-	
+
 	// Set appropriate HTTP status code based on result
 	statusCode := http.StatusOK
 	if result.Error != nil {
@@ -92,10 +92,10 @@ func (s *Server) AnalyzeHandler(w http.ResponseWriter, r *http.Request) {
 			statusCode = http.StatusInternalServerError
 		}
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		logger.Sugar.Errorw("JSON encoding error", "error", err)
 		// Don't change status code here as we've already written it

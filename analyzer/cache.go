@@ -34,7 +34,7 @@ func NewCacheManager(ttl time.Duration) *CacheManager {
 // startCleanup starts the background cache cleanup process
 func (cm *CacheManager) startCleanup() {
 	// Run cleanup every 5 minutes instead of every minute to reduce log noise
-	cm.cleanupTicker = time.NewTicker(5 * time.Minute)
+	cm.cleanupTicker = time.NewTicker(CacheCleanupInterval)
 	go func() {
 		for {
 			select {
@@ -70,15 +70,15 @@ func (cm *CacheManager) SetVerbose(verbose bool) {
 // Get retrieves a result from cache if it exists and is not expired
 func (cm *CacheManager) Get(url string) (*AnalysisResult, bool) {
 	key := cm.generateCacheKey(url)
-	
+
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
-	
+
 	entry, exists := cm.cache[key]
 	if !exists {
 		return nil, false
 	}
-	
+
 	// Check if entry has expired
 	if time.Since(entry.Timestamp) > entry.TTL {
 		// Entry expired, remove it
@@ -89,7 +89,7 @@ func (cm *CacheManager) Get(url string) (*AnalysisResult, bool) {
 		cm.mutex.RLock()
 		return nil, false
 	}
-	
+
 	if cm.verbose {
 		logger.WithCache("hit", url).Info("Cache hit")
 	}
@@ -99,16 +99,16 @@ func (cm *CacheManager) Get(url string) (*AnalysisResult, bool) {
 // Set stores a result in the cache
 func (cm *CacheManager) Set(url string, result *AnalysisResult) {
 	key := cm.generateCacheKey(url)
-	
+
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
-	
+
 	cm.cache[key] = &CacheEntry{
 		Result:    result,
 		Timestamp: time.Now(),
 		TTL:       cm.ttl,
 	}
-	
+
 	if cm.verbose {
 		logger.WithCache("set", url).Info("Cache set")
 	}
@@ -118,19 +118,19 @@ func (cm *CacheManager) Set(url string, result *AnalysisResult) {
 func (cm *CacheManager) clearExpired() {
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
-	
+
 	now := time.Now()
 	expiredCount := 0
-	
+
 	for key, entry := range cm.cache {
 		if now.Sub(entry.Timestamp) > entry.TTL {
 			delete(cm.cache, key)
 			expiredCount++
 		}
 	}
-	
+
 	remainingCount := len(cm.cache)
-	
+
 	// Only log if we actually removed expired entries or if cache is getting large
 	if expiredCount > 0 {
 		logger.WithComponent("cache").Infow("Cache cleanup completed",
@@ -150,16 +150,16 @@ func (cm *CacheManager) clearExpired() {
 func (cm *CacheManager) GetStats() (int, int) {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
-	
+
 	total := len(cm.cache)
 	expired := 0
 	now := time.Now()
-	
+
 	for _, entry := range cm.cache {
 		if now.Sub(entry.Timestamp) > entry.TTL {
 			expired++
 		}
 	}
-	
+
 	return total, expired
 }

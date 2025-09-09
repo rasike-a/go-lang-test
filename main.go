@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"web-page-analyzer/analyzer"
 	"web-page-analyzer/handlers"
 	"web-page-analyzer/logger"
 	"web-page-analyzer/middleware"
@@ -78,50 +79,50 @@ func main() {
 	// Create HTTP server with optimized settings
 	httpServer := &http.Server{
 		Addr:         ":" + port,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  analyzer.ReadTimeout,
+		WriteTimeout: analyzer.WriteTimeout,
+		IdleTimeout:  analyzer.IdleTimeout,
 		// Performance optimizations
-		MaxHeaderBytes: 1 << 20, // 1MB
+		MaxHeaderBytes: analyzer.MaxHeaderBytes,
 	}
 
-			// Start server in goroutine
-		go func() {
-			logger.Sugar.Infof("Server starting on port %s", port)
-			logger.Sugar.Infof("Visit http://localhost:%s to use the application", port)
-			logger.Sugar.Infof("Metrics available at http://localhost:%s/metrics", port)
-			if os.Getenv("ENV") != "production" {
-				logger.Sugar.Infof("Profiling available at http://localhost:%s/debug/pprof/", port)
-			}
+	// Start server in goroutine
+	go func() {
+		logger.Sugar.Infof("Server starting on port %s", port)
+		logger.Sugar.Infof("Visit http://localhost:%s to use the application", port)
+		logger.Sugar.Infof("Metrics available at http://localhost:%s/metrics", port)
+		if os.Getenv("ENV") != "production" {
+			logger.Sugar.Infof("Profiling available at http://localhost:%s/debug/pprof/", port)
+		}
 
-			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				logger.Sugar.Fatal("Server failed to start:", err)
-			}
-		}()
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Sugar.Fatal("Server failed to start:", err)
+		}
+	}()
 
-			// Wait for interrupt signal to gracefully shutdown the server
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		<-quit
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-		logger.Sugar.Info("Server shutting down...")
+	logger.Sugar.Info("Server shutting down...")
 
 	// Create context with timeout for graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout
 	defer cancel()
 
-			// Attempt graceful shutdown
-		if err := httpServer.Shutdown(ctx); err != nil {
-			logger.Sugar.Fatal("Server forced to shutdown:", err)
-		}
+	// Attempt graceful shutdown
+	if err := httpServer.Shutdown(ctx); err != nil {
+		logger.Sugar.Fatal("Server forced to shutdown:", err)
+	}
 
-		logger.Sugar.Info("Server exited gracefully")
+	logger.Sugar.Info("Server exited gracefully")
 }
 
 // handleMetrics returns analyzer performance metrics
-func handleMetrics(w http.ResponseWriter, r *http.Request, server *handlers.Server) {
+func handleMetrics(w http.ResponseWriter, _ *http.Request, server *handlers.Server) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	// Get analyzer metrics
 	analyzer := server.GetAnalyzer()
 	if analyzer == nil {
@@ -130,50 +131,53 @@ func handleMetrics(w http.ResponseWriter, r *http.Request, server *handlers.Serv
 	}
 
 	metrics := analyzer.GetMetrics()
-	
+
 	// Add runtime metrics
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	response := map[string]interface{}{
 		"analyzer": map[string]interface{}{
-			"total_requests":   metrics.TotalRequests,
-			"active_requests":  metrics.ActiveRequests,
-			"total_duration":   metrics.TotalDuration.String(),
-			"avg_duration":     metrics.AvgDuration.String(),
-			"cache_hits":       metrics.CacheHits,
-			"cache_misses":     metrics.CacheMisses,
+			"total_requests":  metrics.TotalRequests,
+			"active_requests": metrics.ActiveRequests,
+			"total_duration":  metrics.TotalDuration.String(),
+			"avg_duration":    metrics.AvgDuration.String(),
+			"cache_hits":      metrics.CacheHits,
+			"cache_misses":    metrics.CacheMisses,
 		},
 		"runtime": map[string]interface{}{
-			"goroutines":       runtime.NumGoroutine(),
-			"memory_alloc":     m.Alloc,
-			"memory_sys":       m.Sys,
+			"goroutines":        runtime.NumGoroutine(),
+			"memory_alloc":      m.Alloc,
+			"memory_sys":        m.Sys,
 			"memory_heap_alloc": m.HeapAlloc,
 			"memory_heap_sys":   m.HeapSys,
-			"gc_cycles":        m.NumGC,
-			"gc_pause_total":   m.PauseTotalNs,
+			"gc_cycles":         m.NumGC,
+			"gc_pause_total":    m.PauseTotalNs,
 		},
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	}
 
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Sugar.Errorw("Metrics response encoding error", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
 // handleHealth returns system health status
-func handleHealth(w http.ResponseWriter, r *http.Request) {
+func handleHealth(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	uptime := time.Since(startTime)
 	response := map[string]interface{}{
 		"status":    "healthy",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 		"uptime":    uptime.String(),
 	}
-	
-			if err := json.NewEncoder(w).Encode(response); err != nil {
-			logger.Sugar.Errorw("Health response encoding error", "error", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Sugar.Errorw("Health response encoding error", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
 // handleCacheLogging controls cache logging verbosity
@@ -185,7 +189,7 @@ func handleCacheLogging(w http.ResponseWriter, r *http.Request, server *handlers
 			http.Error(w, "Analyzer not available", http.StatusServiceUnavailable)
 			return
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		response := map[string]interface{}{
 			"cache_logging": "Use POST to control cache logging verbosity",
@@ -194,14 +198,14 @@ func handleCacheLogging(w http.ResponseWriter, r *http.Request, server *handlers
 				"POST /cache-logging?verbose=false": "Disable verbose cache logging",
 			},
 		}
-		
+
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			logger.Sugar.Errorw("Cache logging response encoding error", "error", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 		return
 	}
-	
+
 	if r.Method == http.MethodPost {
 		// Control cache logging verbosity
 		verbose := r.URL.Query().Get("verbose")
@@ -210,7 +214,7 @@ func handleCacheLogging(w http.ResponseWriter, r *http.Request, server *handlers
 			http.Error(w, "Analyzer not available", http.StatusServiceUnavailable)
 			return
 		}
-		
+
 		switch verbose {
 		case "true":
 			analyzer.SetCacheVerbose(true)
@@ -222,20 +226,20 @@ func handleCacheLogging(w http.ResponseWriter, r *http.Request, server *handlers
 			http.Error(w, "Invalid verbose parameter. Use 'true' or 'false'", http.StatusBadRequest)
 			return
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		response := map[string]interface{}{
 			"cache_logging": verbose == "true",
 			"message":       "Cache logging verbosity updated",
 			"timestamp":     time.Now().UTC().Format(time.RFC3339),
 		}
-		
+
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			logger.Sugar.Errorw("Cache logging response encoding error", "error", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 		return
 	}
-	
+
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }

@@ -18,7 +18,7 @@ type CircuitBreaker struct {
 	failureCount    int
 	lastFailureTime time.Time
 	mutex           sync.RWMutex
-	
+
 	// Configuration
 	failureThreshold int
 	timeout          time.Duration
@@ -46,7 +46,7 @@ func (cb *CircuitBreaker) State() int {
 func (cb *CircuitBreaker) CanExecute() bool {
 	cb.mutex.Lock()
 	defer cb.mutex.Unlock()
-	
+
 	switch cb.state {
 	case StateClosed:
 		return true
@@ -67,7 +67,7 @@ func (cb *CircuitBreaker) CanExecute() bool {
 func (cb *CircuitBreaker) OnSuccess() {
 	cb.mutex.Lock()
 	defer cb.mutex.Unlock()
-	
+
 	switch cb.state {
 	case StateClosed:
 		cb.failureCount = 0
@@ -81,10 +81,10 @@ func (cb *CircuitBreaker) OnSuccess() {
 func (cb *CircuitBreaker) OnFailure() {
 	cb.mutex.Lock()
 	defer cb.mutex.Unlock()
-	
+
 	cb.failureCount++
 	cb.lastFailureTime = time.Now()
-	
+
 	if cb.state == StateClosed && cb.failureCount >= cb.failureThreshold {
 		cb.state = StateOpen
 	} else if cb.state == StateHalfOpen {
@@ -97,14 +97,14 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
 	if !cb.CanExecute() {
 		return NewAnalysisError(ErrCodeNetworkError, "Circuit breaker is open")
 	}
-	
+
 	err := fn()
 	if err != nil {
 		cb.OnFailure()
 	} else {
 		cb.OnSuccess()
 	}
-	
+
 	return err
 }
 
@@ -112,7 +112,7 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
 func (cb *CircuitBreaker) Reset() {
 	cb.mutex.Lock()
 	defer cb.mutex.Unlock()
-	
+
 	cb.state = StateClosed
 	cb.failureCount = 0
 }

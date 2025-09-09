@@ -2,8 +2,6 @@ package analyzer
 
 import (
 	"errors"
-	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,11 +15,11 @@ import (
 func TestNewAnalyzer(t *testing.T) {
 	timeout := 10 * time.Second
 	analyzer := NewAnalyzer(timeout)
-	
+
 	if analyzer == nil {
 		t.Fatal("NewAnalyzer returned nil")
 	}
-	
+
 	if analyzer.timeout != timeout {
 		t.Errorf("Expected timeout %v, got %v", timeout, analyzer.timeout)
 	}
@@ -29,7 +27,7 @@ func TestNewAnalyzer(t *testing.T) {
 
 func TestDetectHTMLVersion(t *testing.T) {
 	analyzer := NewAnalyzer(30 * time.Second)
-	
+
 	testCases := []struct {
 		name     string
 		html     string
@@ -56,7 +54,7 @@ func TestDetectHTMLVersion(t *testing.T) {
 			expected: "Unknown",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := analyzer.detectHTMLVersion(tc.html)
@@ -70,16 +68,16 @@ func TestDetectHTMLVersion(t *testing.T) {
 func TestAnalyzeURL_InvalidURL(t *testing.T) {
 	analyzer := NewAnalyzer(5 * time.Second)
 	result := analyzer.AnalyzeURL("invalid-url")
-	
+
 	if result.Error == nil {
 		t.Fatal("Expected error for invalid URL")
 	}
-	
+
 	// The URL gets normalized and fails at network level, so it's INTERNAL_ERROR
 	if result.Error.Code != ErrCodeInternalError {
 		t.Errorf("Expected error code %s, got %s", ErrCodeInternalError, result.Error.Code)
 	}
-	
+
 	if result.URL != "invalid-url" {
 		t.Errorf("Expected URL 'invalid-url', got %s", result.URL)
 	}
@@ -253,8 +251,8 @@ func TestIsLoginForm(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "Empty form",
-			html: `<form></form>`,
+			name:     "Empty form",
+			html:     `<form></form>`,
 			expected: false,
 		},
 		{
@@ -316,9 +314,9 @@ func TestAnalyzeLinks(t *testing.T) {
 	result := &AnalysisResult{HeadingCounts: make(map[string]int)}
 
 	links := []string{
-		"/good",                    // internal, accessible
-		"/bad",                     // internal, not accessible
-		"https://external.com",     // external
+		"/good",                   // internal, accessible
+		"/bad",                    // internal, not accessible
+		"https://external.com",    // external
 		"#fragment",               // should be ignored
 		"javascript:void(0)",      // should be ignored
 		"mailto:test@example.com", // should be ignored
@@ -344,71 +342,71 @@ func parseHTMLString(htmlStr string) (*html.Node, error) {
 func TestAnalyzeURL_URLWithoutScheme(t *testing.T) {
 	analyzer := NewAnalyzer(5 * time.Second)
 	result := analyzer.AnalyzeURL("example.com")
-	
+
 	// example.com is a valid domain, so it should succeed
 	if result.Error != nil {
 		t.Errorf("Unexpected error: %s", result.Error.Message)
 	}
-	
+
 	if result.URL != "example.com" {
 		t.Errorf("Expected URL 'example.com', got %s", result.URL)
 	}
 }
 
 func TestCacheManager(t *testing.T) {
-	cache := NewCacheManager(100*time.Millisecond)
-	
+	cache := NewCacheManager(100 * time.Millisecond)
+
 	// Test cache operations
 	result := &AnalysisResult{URL: "test.com"}
 	cache.Set("test.com", result)
-	
+
 	// Test cache hit
 	if cached, found := cache.Get("test.com"); !found {
 		t.Error("Expected cache hit")
 	} else if cached.URL != "test.com" {
 		t.Error("Expected correct cached result")
 	}
-	
+
 	// Test cache miss
 	if _, found := cache.Get("nonexistent.com"); found {
 		t.Error("Expected cache miss")
 	}
-	
+
 	// Test cache expiration
 	time.Sleep(150 * time.Millisecond)
 	if _, found := cache.Get("test.com"); found {
 		t.Error("Expected expired cache entry to be removed")
 	}
-	
+
 	// Test cache stats
 	total, _ := cache.GetStats()
 	if total != 0 {
 		t.Errorf("Expected 0 total entries, got %d", total)
 	}
-	
+
 	// Test stop functionality
 	cache.Stop()
 }
 
 func TestMetricsManager(t *testing.T) {
 	metrics := NewMetricsManager()
-	
+
 	// Test initial state
 	initialMetrics := metrics.GetMetrics()
 	if initialMetrics.TotalRequests != 0 {
 		t.Error("Expected initial total requests to be 0")
 	}
-	
+
 	// Test metrics updates
 	metrics.incrementActiveRequests()
 	metrics.incrementActiveRequests()
 	metrics.decrementActiveRequests()
-	
+
 	metrics.RecordCacheHit()
 	metrics.RecordCacheMiss()
-	
+
 	metrics.updateMetrics(100 * time.Millisecond)
-	
+
 	// Test final state
 	finalMetrics := metrics.GetMetrics()
 	if finalMetrics.ActiveRequests != 1 {
@@ -423,7 +421,7 @@ func TestMetricsManager(t *testing.T) {
 	if finalMetrics.TotalRequests != 1 {
 		t.Errorf("Expected 1 total request, got %d", finalMetrics.TotalRequests)
 	}
-	
+
 	// Test reset
 	metrics.Reset()
 	resetMetrics := metrics.GetMetrics()
@@ -434,24 +432,24 @@ func TestMetricsManager(t *testing.T) {
 
 func TestCircuitBreaker(t *testing.T) {
 	cb := NewCircuitBreaker(2, 200*time.Millisecond, 1)
-	
+
 	// Test initial state
 	if cb.State() != StateClosed {
 		t.Error("Expected initial state to be closed")
 	}
-	
+
 	// Test successful execution
 	if !cb.CanExecute() {
 		t.Error("Expected to be able to execute in closed state")
 	}
-	
+
 	err := cb.Execute(func() error {
 		return nil
 	})
 	if err != nil {
 		t.Error("Expected successful execution")
 	}
-	
+
 	// Test failure threshold
 	err = cb.Execute(func() error {
 		return errors.New("test error")
@@ -459,26 +457,26 @@ func TestCircuitBreaker(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error to be returned")
 	}
-	
+
 	err = cb.Execute(func() error {
 		return errors.New("test error")
 	})
 	if err == nil {
 		t.Error("Expected error to be returned")
 	}
-	
+
 	// Test open state
 	if cb.State() != StateOpen {
 		t.Error("Expected circuit breaker to be open after failures")
 	}
-	
+
 	if cb.CanExecute() {
 		t.Error("Expected to not be able to execute in open state")
 	}
-	
+
 	// Test timeout and half-open state
 	time.Sleep(250 * time.Millisecond)
-	
+
 	// The circuit breaker transitions to half-open when CanExecute is called after timeout
 	if cb.CanExecute() {
 		if cb.State() != StateHalfOpen {
@@ -487,7 +485,7 @@ func TestCircuitBreaker(t *testing.T) {
 	} else {
 		t.Error("Expected to be able to execute in half-open state")
 	}
-	
+
 	// Test successful execution in half-open state
 	err = cb.Execute(func() error {
 		return nil
@@ -495,12 +493,12 @@ func TestCircuitBreaker(t *testing.T) {
 	if err != nil {
 		t.Error("Expected successful execution in half-open state")
 	}
-	
+
 	// Test reset to closed state
 	if cb.State() != StateClosed {
 		t.Error("Expected circuit breaker to be closed after success")
 	}
-	
+
 	// Test manual reset
 	cb.Reset()
 	if cb.State() != StateClosed {
@@ -515,29 +513,29 @@ func TestErrorHelpers(t *testing.T) {
 		WithURL("https://example.com").
 		WithStatusCode(400).
 		WithCause(errors.New("root cause"))
-	
+
 	if err.Code != ErrCodeInvalidURL {
 		t.Errorf("Expected error code %s, got %s", ErrCodeInvalidURL, err.Code)
 	}
-	
+
 	if err.Details != "Additional details" {
 		t.Errorf("Expected details 'Additional details', got %s", err.Details)
 	}
-	
+
 	if err.URL != "https://example.com" {
 		t.Errorf("Expected URL 'https://example.com', got %s", err.URL)
 	}
-	
+
 	if err.StatusCode != 400 {
 		t.Errorf("Expected status code 400, got %d", err.StatusCode)
 	}
-	
+
 	// Test specific error constructors
 	invalidURLErr := NewInvalidURLError("bad url", errors.New("parse error"))
 	if invalidURLErr.Code != ErrCodeInvalidURL {
 		t.Errorf("Expected error code %s, got %s", ErrCodeInvalidURL, invalidURLErr.Code)
 	}
-	
+
 	httpErr := NewHTTPError(404, "https://example.com")
 	if httpErr.Code != ErrCodeHTTPError {
 		t.Errorf("Expected error code %s, got %s", ErrCodeHTTPError, httpErr.Code)
@@ -545,31 +543,31 @@ func TestErrorHelpers(t *testing.T) {
 	if httpErr.StatusCode != 404 {
 		t.Errorf("Expected status code 404, got %d", httpErr.StatusCode)
 	}
-	
+
 	networkErr := NewNetworkError("https://example.com", errors.New("connection failed"))
 	if networkErr.Code != ErrCodeNetworkError {
 		t.Errorf("Expected error code %s, got %s", ErrCodeNetworkError, networkErr.Code)
 	}
-	
+
 	parseErr := NewParseError("https://example.com", errors.New("parsing failed"))
 	if parseErr.Code != ErrCodeParseError {
 		t.Errorf("Expected error code %s, got %s", ErrCodeParseError, parseErr.Code)
 	}
-	
+
 	timeoutErr := NewTimeoutError("https://example.com", 30*time.Second)
 	if timeoutErr.Code != ErrCodeTimeoutError {
 		t.Errorf("Expected error code %s, got %s", ErrCodeTimeoutError, timeoutErr.Code)
 	}
-	
+
 	// Test error checking functions
 	if !IsAnalysisError(err) {
 		t.Error("Expected IsAnalysisError to return true")
 	}
-	
+
 	if retrievedErr := GetAnalysisError(err); retrievedErr == nil {
 		t.Error("Expected GetAnalysisError to return error")
 	}
-	
+
 	// Test error unwrapping
 	if unwrapped := err.Unwrap(); unwrapped == nil {
 		t.Error("Expected Unwrap to return cause")
@@ -578,17 +576,13 @@ func TestErrorHelpers(t *testing.T) {
 
 func TestAnalyzerMethods(t *testing.T) {
 	analyzer := NewAnalyzer(5 * time.Second)
-	
-	// Test SetLogger
-	logger := log.New(io.Discard, "", 0)
-	analyzer.SetLogger(logger)
-	
+
 	// Test GetMetrics
 	metrics := analyzer.GetMetrics()
 	if metrics.TotalRequests != 0 {
 		t.Error("Expected initial metrics to have 0 total requests")
 	}
-	
+
 	// Test Stop method
 	analyzer.Stop()
 }

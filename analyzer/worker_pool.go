@@ -2,14 +2,13 @@ package analyzer
 
 import (
 	"net/url"
-	"strings"
 )
 
 // NewAnalysisWorkerPool creates a new worker pool for link analysis
 func NewAnalysisWorkerPool(workers int, analyzer *Analyzer) *AnalysisWorkerPool {
 	// Increase buffer sizes for high-throughput processing
-	bufferSize := workers * 4 // 4x buffer for better throughput
-	
+	bufferSize := workers * BufferMultiplier // 4x buffer for better throughput
+
 	return &AnalysisWorkerPool{
 		workers:  workers,
 		jobQueue: make(chan AnalysisJob, bufferSize),
@@ -19,7 +18,7 @@ func NewAnalysisWorkerPool(workers int, analyzer *Analyzer) *AnalysisWorkerPool 
 	}
 }
 
-// Start starts the worker pool
+// Start starts the worker pool and begins processing jobs
 func (wp *AnalysisWorkerPool) Start() {
 	for i := 0; i < wp.workers; i++ {
 		wp.workerWg.Add(1)
@@ -27,7 +26,7 @@ func (wp *AnalysisWorkerPool) Start() {
 	}
 }
 
-// Stop stops the worker pool and waits for all workers to finish
+// Stops the worker pool gracefully and waits for all workers to finish
 func (wp *AnalysisWorkerPool) Stop() {
 	close(wp.stopChan)
 	close(wp.jobQueue)
@@ -35,7 +34,7 @@ func (wp *AnalysisWorkerPool) Stop() {
 	close(wp.results)
 }
 
-// SubmitJob submits a job to the worker pool
+// SubmitJob submits a job to the worker pool for processing
 func (wp *AnalysisWorkerPool) SubmitJob(job AnalysisJob) {
 	select {
 	case wp.jobQueue <- job:
@@ -55,7 +54,7 @@ func (wp *AnalysisWorkerPool) GetResults() <-chan LinkResult {
 // worker is the main worker goroutine
 func (wp *AnalysisWorkerPool) worker() {
 	defer wp.workerWg.Done()
-	
+
 	for {
 		select {
 		case job, ok := <-wp.jobQueue:
@@ -74,61 +73,20 @@ func (wp *AnalysisWorkerPool) processJob(job AnalysisJob) {
 	baseURL, err := url.Parse(job.BaseURL)
 	if err != nil {
 		wp.results <- LinkResult{
-			Link:        job.Link,
-			IsInternal:  false,
+			Link:         job.Link,
+			IsInternal:   false,
 			IsAccessible: false,
-			Error:       err,
+			Error:        err,
 		}
 		return
 	}
-	
+
 	result := wp.analyzer.analyzeSingleLink(job.Link, baseURL)
 	wp.results <- result
 }
 
 // analyzeSingleLink analyzes a single link for accessibility and type
 func (a *Analyzer) analyzeSingleLink(link string, baseURL *url.URL) LinkResult {
-	// Skip empty links and fragments
-	if link == "" || strings.HasPrefix(link, "#") {
-		return LinkResult{
-			Link:        link,
-			IsInternal:  false,
-			IsAccessible: false,
-			Error:       nil,
-		}
-	}
-	
-	// Parse the link URL
-	linkURL, err := url.Parse(link)
-	if err != nil {
-		return LinkResult{
-			Link:        link,
-			IsInternal:  false,
-			IsAccessible: false,
-			Error:       err,
-		}
-	}
-	
-	// Resolve relative URLs
-	if !linkURL.IsAbs() {
-		linkURL = baseURL.ResolveReference(linkURL)
-	}
-	
-	// Determine if link is internal or external
-	isInternal := linkURL.Hostname() == baseURL.Hostname()
-	
-	// Check if link is accessible (only for external links to avoid infinite loops)
-	var isAccessible bool
-	if !isInternal {
-		isAccessible = a.isLinkAccessible(linkURL.String())
-	} else {
-		isAccessible = true // Assume internal links are accessible
-	}
-	
-	return LinkResult{
-		Link:        link,
-		IsInternal:  isInternal,
-		IsAccessible: isAccessible,
-		Error:       nil,
-	}
+	linkProcessor := NewLinkProcessor()
+	return linkProcessor.ProcessLink(link, baseURL, a.isLinkAccessible)
 }

@@ -29,7 +29,7 @@ func PanicRecovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				logger.Sugar.Errorw("Panic recovered", 
+				logger.Sugar.Errorw("Panic recovered",
 					"error", err,
 					"stack_trace", string(debug.Stack()),
 				)
@@ -44,13 +44,13 @@ func PanicRecovery(next http.Handler) http.Handler {
 func Logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
+
 		// Wrap response writer to capture status code
 		rw := &ResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-		
+
 		// Process request
 		next.ServeHTTP(rw, r)
-		
+
 		// Log request details
 		duration := time.Since(start)
 		logger.WithRequest(r.Method, r.URL.Path, r.RemoteAddr, r.UserAgent()).Infow("HTTP request completed",
@@ -66,12 +66,12 @@ func CORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -83,7 +83,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -95,18 +95,18 @@ func Timeout(timeout time.Duration) func(http.Handler) http.Handler {
 			// Create a context with timeout
 			ctx, cancel := context.WithTimeout(r.Context(), timeout)
 			defer cancel()
-			
+
 			// Update request with new context
 			r = r.WithContext(ctx)
-			
+
 			// Create a channel to signal completion
 			done := make(chan bool, 1)
-			
+
 			go func() {
 				next.ServeHTTP(w, r)
 				done <- true
 			}()
-			
+
 			select {
 			case <-done:
 				// Request completed successfully

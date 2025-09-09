@@ -49,7 +49,7 @@ func Init() {
 	if isDevelopment {
 		format = "console"
 	}
-	Sugar.Info("Logger initialized", 
+	Sugar.Info("Logger initialized",
 		"environment", os.Getenv("ENV"),
 		"format", format,
 	)
@@ -58,7 +58,11 @@ func Init() {
 // Sync flushes any buffered log entries
 func Sync() {
 	if Logger != nil {
-		Logger.Sync()
+		if err := Logger.Sync(); err != nil {
+			// Logger sync errors are typically not critical and can be ignored
+			// in most cases, but we could log them if needed
+			_ = err
+		}
 	}
 }
 
@@ -67,13 +71,13 @@ func WithFields(fields map[string]interface{}) *zap.SugaredLogger {
 	if Sugar == nil {
 		Init()
 	}
-	
+
 	// Convert map to key-value pairs for Sugar.With()
 	var args []interface{}
 	for k, v := range fields {
 		args = append(args, k, v)
 	}
-	
+
 	return Sugar.With(args...)
 }
 
@@ -105,7 +109,7 @@ func WithAnalysis(url string) *zap.SugaredLogger {
 // WithCache creates a logger with cache-specific fields
 func WithCache(operation, url string) *zap.SugaredLogger {
 	return WithFields(map[string]interface{}{
-		"component":        "cache",
+		"component":       "cache",
 		"cache_operation": operation,
 		"url":             url,
 	})
@@ -114,7 +118,7 @@ func WithCache(operation, url string) *zap.SugaredLogger {
 // WithMetrics creates a logger with metrics-specific fields
 func WithMetrics(operation string) *zap.SugaredLogger {
 	return WithFields(map[string]interface{}{
-		"component":        "metrics",
+		"component":         "metrics",
 		"metrics_operation": operation,
 	})
 }
@@ -122,8 +126,8 @@ func WithMetrics(operation string) *zap.SugaredLogger {
 // WithCircuitBreaker creates a logger with circuit breaker fields
 func WithCircuitBreaker(state, operation string) *zap.SugaredLogger {
 	return WithFields(map[string]interface{}{
-		"component":           "circuit_breaker",
+		"component":             "circuit_breaker",
 		"circuit_breaker_state": state,
-		"operation":           operation,
+		"operation":             operation,
 	})
 }
