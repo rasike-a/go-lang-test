@@ -18,7 +18,7 @@ func NewAnalysisWorkerPool(workers int, analyzer *Analyzer) *AnalysisWorkerPool 
 	}
 }
 
-// Start starts the worker pool and begins processing jobs
+// Starts the worker pool and begins processing jobs
 func (wp *AnalysisWorkerPool) Start() {
 	for i := 0; i < wp.workers; i++ {
 		wp.workerWg.Add(1)
