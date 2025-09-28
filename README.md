@@ -431,10 +431,10 @@ The application features a modern, maintainable frontend architecture with enhan
 ### 🎨 Modern UI Components
 
 #### Template-Based Rendering System
-- **HTML Templates**: Separated HTML structure from JavaScript logic
+- **Embedded HTML Templates**: Templates embedded in Go code for optimal performance
 - **ResultsRenderer Class**: Dedicated class for handling all rendering operations
 - **Dynamic Content**: Fast template cloning instead of string concatenation
-- **Maintainable Code**: HTML changes don't require JavaScript modifications
+- **Single HTTP Request**: All templates delivered in initial page load for maximum efficiency
 
 #### Enhanced CSS Design System
 - **CSS Custom Properties**: Consistent theming with CSS variables
@@ -455,7 +455,7 @@ The application features a modern, maintainable frontend architecture with enhan
 #### Template System Benefits
 - **Faster Rendering**: Template cloning outperforms string manipulation
 - **Memory Efficiency**: Reduced memory allocation during rendering
-- **Better Caching**: Browser can cache template elements
+- **Single Request Architecture**: All templates loaded in initial page request
 - **Cleaner Code**: Separation of concerns improves maintainability
 
 #### User Experience Enhancements
@@ -1055,11 +1055,9 @@ go tool cover -func=coverage.out
 ├── static/
 │   ├── css/
 │   │   └── styles.css      # Modern CSS with custom properties
-│   ├── js/
-│   │   ├── app.js          # Main application logic
-│   │   └── resultsRenderer.js # Template-based rendering
-│   └── templates/
-│       └── results.html    # HTML templates for dynamic content
+│   └── js/
+│       ├── app.js          # Main application logic
+│       └── resultsRenderer.js # Template-based rendering
 ├── go.mod                  # Go module definition
 ├── go.sum                  # Dependency checksums
 ├── .gitignore             # Git ignore patterns
