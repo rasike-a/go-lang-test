@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlInput = document.getElementById('url');
     const submitBtn = document.getElementById('submitBtn');
     const resultsDiv = document.getElementById('results');
+    const urlHelp = document.getElementById('url-help');
     
     // Initialize the results renderer
     const resultsRenderer = new ResultsRenderer(resultsDiv);
@@ -25,6 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add loading state to button
         setButtonLoading(true);
+        
+        // Update help text to show processing state
+        updateHelpText('Analyzing the web page, please wait...');
         
         // Show results container with loading state
         resultsRenderer.show();
@@ -45,9 +49,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const result = await response.json();
             resultsRenderer.renderResults(result);
+            // Update help text to show success
+            updateHelpText('Analysis completed successfully!');
         } catch (error) {
             console.error('Analysis error:', error);
             resultsRenderer.renderError(`Error: Failed to analyze the page. ${error.message}`);
+            // Update help text to show error
+            updateHelpText('Analysis failed. Please try again.');
         } finally {
             // Reset button state
             setButtonLoading(false);
@@ -77,10 +85,27 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     urlInput.addEventListener('focus', function() {
         this.parentElement.classList.add('focused');
+        // Show contextual help when focused
+        if (this.value.trim() === '') {
+            updateHelpText('Enter a valid web address to analyze');
+        } else {
+            updateHelpText('Press Enter or click Analyze to start analysis');
+        }
     });
 
     urlInput.addEventListener('blur', function() {
         this.parentElement.classList.remove('focused');
+        // Reset to default help text when not focused
+        updateHelpText('Enter a valid web address to analyze');
+    });
+
+    urlInput.addEventListener('input', function() {
+        // Update help text based on input
+        if (this.value.trim() === '') {
+            updateHelpText('Enter a valid web address to analyze');
+        } else {
+            updateHelpText('Press Enter or click Analyze to start analysis');
+        }
     });
 
     /**
@@ -97,7 +122,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Escape') {
             urlInput.value = '';
             resultsRenderer.hide();
+            updateHelpText('Enter a valid web address to analyze');
             urlInput.focus();
         }
     });
+
+    /**
+     * Update help text with smooth transition
+     */
+    function updateHelpText(text) {
+        if (urlHelp) {
+            urlHelp.textContent = text;
+        }
+    }
 });

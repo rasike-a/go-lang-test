@@ -129,7 +129,7 @@ const indexHTML = `
                                aria-labelledby="url-label"
                                aria-describedby="url-help"
                                data-validation="url">
-                        <div id="url-help" class="form-help">Enter a valid web address to analyze</div>
+                        <div id="url-help" class="form-help" data-default-text="Enter a valid web address to analyze">Enter a valid web address to analyze</div>
                     </div>
                     <button type="submit" id="submitBtn" class="btn btn-primary" 
                             aria-live="polite"
