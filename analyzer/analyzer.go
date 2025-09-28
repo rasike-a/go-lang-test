@@ -187,13 +187,17 @@ func (a *Analyzer) performAnalysis(ctx context.Context, parsedURL *url.URL, resu
 		return err
 	}
 
-	// Set headers
-	req.Header.Set("User-Agent", "WebPageAnalyzer/1.0")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	// Explicitly tell server not to compress
-	req.Header.Set("Accept-Encoding", "identity")
+	// Set headers to mimic a real browser (but avoid compression)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Accept-Encoding", "identity") // Avoid compression for simplicity
 	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Cache-Control", "max-age=0")
 
 	// Get HTTP client from pool
 	client := a.httpClientPool.Get().(*http.Client)
